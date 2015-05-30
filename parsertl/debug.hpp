@@ -37,7 +37,7 @@ public:
 
         for (typename terminal_map::const_iterator iter_ =
             terminals_.begin(), end_ = terminals_.end();
-            iter_ != end_;  ++iter_)
+            iter_ != end_; ++iter_)
         {
             if (iter_->second._id == 0) continue;
 

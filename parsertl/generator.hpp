@@ -35,30 +35,45 @@ public:
         size_t_set_deque configs_;
         dfa dfa_;
         size_t_nt_state_map nt_st_;
+        size_t_map new_old_map_;
 
         rules_.validate();
         start_ = rules_.start();
+        sm_.clear();
 
         if (nt_states_ == 0) nt_states_ = &nt_st_;
 
         rules_.symbols(symbols_);
-        sm_.clear();
         enumerate_non_terminals(grammar_, terminals_.size(), nt_enums_);
         // lookup start
         iter_ = nts_.find(start_);
         build_dfa(grammar_, terminals_, nt_enums_, nts_,
             grammar_[iter_->second._first_production], configs_, dfa_);
-        fill_nt_states(nt_enums_, *nt_states_);
 
+        rewrite(rules_, start_, configs_, dfa_, terminals_, nt_enums_,
+            new_old_map_);
+        rules_.symbols(symbols_);
+        enumerate_non_terminals(grammar_, terminals_.size(), nt_enums_);
+        iter_ = nts_.find(start_);
+        build_dfa(grammar_, terminals_, nt_enums_, nts_,
+            grammar_[iter_->second._first_production], configs_, dfa_);
+
+        fill_nt_states(nt_enums_, *nt_states_);
         build_first_sets(grammar_, terminals_, nt_enums_, nts_, *nt_states_);
         // First add EOF to follow_set of start.
         nt_states_->find(nt_enums_.find(start_)->second)->second.
             _follow_set.insert(0);
         build_follow_sets(grammar_, terminals_, nt_enums_, *nt_states_);
-
         build_table(dfa_, configs_, grammar_, start_,
             *nt_states_, terminals_, nt_enums_, symbols_, sm_, warnings_);
         copy_rules(grammar_, terminals_, nt_enums_, sm_);
+        sm_._new_to_old.resize(new_old_map_.size());
+
+        for (typename size_t_map::const_iterator iter_ = new_old_map_.begin(),
+            end_ = new_old_map_.end(); iter_ != end_; ++iter_)
+        {
+            sm_._new_to_old[iter_->first] = iter_->second;
+        }
     }
 
 private:
@@ -67,6 +82,7 @@ private:
     typedef std::pair<string, std::size_t> nt_enum_pair;
     typedef typename rules::nt_map nt_map;
     typedef typename detail::nt_state nt_state;
+    typedef std::map<std::size_t, std::size_t> size_t_map;
     typedef typename detail::size_t_nt_state_map size_t_nt_state_map;
     typedef typename detail::size_t_nt_state_pair size_t_nt_state_pair;
     typedef typename rules::production production;
@@ -89,11 +105,23 @@ private:
 
     typedef std::deque<dfa_state> dfa;
 
+    struct prod
+    {
+        string _lhs;
+        size_t_pair _lhs_indexes;
+        symbol_deque _rhs;
+        std::vector<size_t_pair> _rhs_indexes;
+    };
+
+    typedef std::deque<prod> prod_deque;
+
     static void enumerate_non_terminals(const grammar &grammar_,
         const std::size_t offset_, nt_enum_map &nt_enums_)
     {
         typename grammar::const_iterator iter_ = grammar_.begin();
         typename grammar::const_iterator end_ = grammar_.end();
+
+        nt_enums_.clear();
 
         for (; iter_ != end_; ++iter_)
         {
@@ -115,6 +143,8 @@ private:
         // Not owner
         std::queue<size_t_set *> queue_;
 
+        configs_.clear();
+        dfa_.clear();
         configs_.push_back(size_t_set());
         closure(size_t_pair(start_._index, 0), grammar_, nts_,
             configs_.back());
@@ -231,6 +261,253 @@ private:
                 }
             }
         } while (!queue_.empty());
+    }
+
+    static void rewrite(rules &rules_, const string &start_,
+        const size_t_set_deque &configs_, const dfa &dfa_,
+        const terminal_map &terminals_, const nt_enum_map &nt_enums_,
+        size_t_map &new_old_map_)
+    {
+        const grammar &grammar_ = rules_.grammar();
+        typedef std::pair<std::size_t, size_t_pair> trie;
+        std::queue<trie> queue_;
+        typedef typename size_t_set_deque::const_iterator configs_iter;
+        std::size_t index_ = 0;
+        prod_deque new_grammar_;
+
+        // DFA state, rule, index in rule
+        for (configs_iter iter_ = configs_.begin(), end_ = configs_.end();
+            iter_ != end_; ++iter_, ++index_)
+        {
+            typename size_t_set::const_iterator i_ = iter_->begin();
+            typename size_t_set::const_iterator e_ = iter_->end();
+
+            for (; i_ != e_; ++i_)
+            {
+                if (i_->second == 0)
+                {
+                    queue_.push(trie(index_, *i_));
+                }
+            }
+        }
+
+        for (; !queue_.empty(); queue_.pop())
+        {
+            trie trie_ = queue_.front();
+            const production &production_ = grammar_[trie_.second.first];
+            prod *prod_ = 0;
+
+            new_grammar_.push_back(prod());
+            prod_ = &new_grammar_.back();
+            prod_->_lhs = production_._lhs;
+            prod_->_rhs = production_._rhs;
+
+            if (production_._lhs != start_)
+            {
+                std::basic_ostringstream<typename rules::char_type> ss_;
+
+                prod_->_lhs_indexes.first = trie_.first;
+                prod_->_lhs_indexes.second =
+                    dfa_[trie_.first]._transitions.find(nt_enums_.find
+                        (production_._lhs)->second)->second;
+            }
+
+            typedef typename symbol_deque::const_iterator rhs_iter;
+
+            index_ = trie_.first;
+
+            for (rhs_iter iter_ = production_._rhs.begin(),
+                end_ = production_._rhs.end(); iter_ != end_; ++iter_)
+            {
+                std::basic_ostringstream<typename rules::char_type> ss_;
+
+                prod_->_rhs_indexes.push_back(size_t_pair());
+                prod_->_rhs_indexes.back().first = index_;
+
+                switch (iter_->_type)
+                {
+                    case rules::symbol::TERMINAL:
+                        index_ = dfa_[index_]._transitions.find
+                            (terminals_.find(iter_->_name)->second._id)->second;
+                        break;
+                    case rules::symbol::NON_TERMINAL:
+                        index_ = dfa_[index_]._transitions.find(nt_enums_.find
+                            (iter_->_name)->second)->second;
+                        break;
+                }
+
+                prod_->_rhs_indexes.back().second = index_;
+            }
+        }
+
+        minimise(new_grammar_, rules_.grammar(), new_old_map_);
+        new_rules(rules_, new_grammar_);
+    }
+
+    static void minimise(prod_deque &grammar_, const grammar &orig_,
+        size_t_map &new_old_map_)
+    {
+        std::size_t src_idx_ = 0;
+        size_t_map del_map_;
+
+        // Find duplicates
+        for (typename prod_deque::const_iterator src_ = grammar_.begin(),
+            end_ = grammar_.end(); src_ != end_; ++src_, ++src_idx_)
+        {
+            std::size_t idx_ = src_idx_ + 1;
+
+            // Skip entries that are already marked for deletion
+            if (del_map_.find(src_idx_) != del_map_.end())
+                continue;
+
+            for (typename prod_deque::const_iterator dest_ = src_ + 1;
+                dest_ != end_; ++dest_, ++idx_)
+            {
+                if (src_->_lhs == dest_->_lhs &&
+                    (src_->_rhs_indexes.empty() &&
+                    dest_->_rhs_indexes.empty() ||
+                    src_->_rhs == dest_->_rhs &&
+                    src_->_rhs_indexes.back().second ==
+                    dest_->_rhs_indexes.back().second))
+                {
+                    if (del_map_.find(idx_) == del_map_.end())
+                    {
+                        del_map_.insert(size_t_pair(idx_, src_idx_));
+                    }
+                }
+            }
+        }
+
+        src_idx_ = 0;
+
+        // Renumber
+        for (typename prod_deque::iterator iter_ = grammar_.begin(),
+            end_ = grammar_.end(); iter_ != end_; ++iter_, ++src_idx_)
+        {
+            // Only renumber rules that are not to be deleted.
+            if (del_map_.find(src_idx_) == del_map_.end())
+            {
+                std::size_t idx_ = 0;
+
+                for (typename symbol_deque::iterator rhs_iter_ =
+                    iter_->_rhs.begin(), rhs_end_ = iter_->_rhs.end();
+                    rhs_iter_ != rhs_end_; ++rhs_iter_, ++idx_)
+                {
+                    for (typename size_t_map::const_iterator del_iter_ =
+                        del_map_.begin(), del_end_ = del_map_.end();
+                        del_iter_ != del_end_; ++del_iter_)
+                    {
+                        const prod &prod_ = grammar_[del_iter_->first];
+
+                        if (rhs_iter_->_type == symbol::NON_TERMINAL &&
+                            rhs_iter_->_name == prod_._lhs &&
+                            iter_->_rhs_indexes[idx_] == prod_._lhs_indexes)
+                        {
+                            iter_->_rhs_indexes[idx_] =
+                                grammar_[del_iter_->second]._lhs_indexes;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Delete redundant productions
+        for (typename size_t_map::const_reverse_iterator del_iter_ =
+            del_map_.rbegin(), del_end_ = del_map_.rend();
+            del_iter_ != del_end_; ++del_iter_)
+        {
+            grammar_.erase(grammar_.begin() + del_iter_->first);
+        }
+
+        std::size_t dest_idx_ = 0;
+
+        // Map new productions to old
+        for (typename prod_deque::const_iterator iter_ = grammar_.begin(),
+            end_ = grammar_.end(); iter_ != end_; ++iter_, ++dest_idx_)
+        {
+            std::size_t idx_ = 0;
+
+            for (typename grammar::const_iterator src_ = orig_.begin(),
+                src_end_ = orig_.end(); src_ != src_end_; ++src_, ++idx_)
+            {
+                if (iter_->_lhs == src_->_lhs && iter_->_rhs == src_->_rhs)
+                {
+                    new_old_map_[dest_idx_] = idx_;
+                }
+            }
+        }
+    }
+
+    static void new_rules(rules &rules_, const prod_deque &new_grammar_)
+    {
+        const string &start_ = rules_.start();
+        const bool dollar_ = !start_.empty() && start_[0] == '$';
+        rules new_rules_;
+        typename prod_deque::const_iterator iter_ = new_grammar_.begin();
+        typename prod_deque::const_iterator end_ = new_grammar_.end();
+
+        rules_.copy_terminals(new_rules_);
+
+        for (; iter_ != end_; ++iter_)
+        {
+            string lhs_;
+            string rhs_;
+            const std::size_t size_ = iter_->_rhs.size();
+
+            if (iter_->_lhs == start_)
+            {
+                lhs_ = iter_->_lhs;
+            }
+            else
+            {
+                std::basic_ostringstream<typename rules::char_type> ss_;
+
+                ss_ << iter_->_lhs << iter_->_lhs_indexes.first << '_' <<
+                    iter_->_lhs_indexes.second;
+                lhs_ = ss_.str();
+            }
+
+            for (std::size_t index_ = 0; index_ < size_; ++index_)
+            {
+                const symbol &symbol_ = iter_->_rhs[index_];
+
+                if (!rhs_.empty())
+                {
+                    rhs_ += ' ';
+                }
+
+                if (symbol_._type == symbol::TERMINAL ||
+                    symbol_._name == start_)
+                {
+                    rhs_ += symbol_._name;
+                }
+                else
+                {
+                    std::basic_ostringstream<typename rules::char_type> ss_;
+
+                    ss_ << symbol_._name <<
+                        iter_->_rhs_indexes[index_].first <<
+                        '_' << iter_->_rhs_indexes[index_].second;
+                    rhs_ += ss_.str();
+                }
+            }
+
+            if (!(dollar_ && lhs_ == start_))
+            {
+                new_rules_.push(lhs_.c_str(), rhs_.c_str());
+            }
+        }
+
+        if (dollar_)
+        {
+            new_rules_.validate();
+        }
+        else
+        {
+            new_rules_.start(start_.c_str());
+        }
+
+        rules_.swap(new_rules_);
     }
 
     static void fill_nt_states(const nt_enum_map &nt_enums_,

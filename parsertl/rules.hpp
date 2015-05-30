@@ -38,6 +38,11 @@ public:
             return _type < rhs_._type ||
                 _type == rhs_._type && _name < rhs_._name;
         }
+
+        bool operator==(const symbol &rhs_) const
+        {
+            return _type == rhs_._type && _name == rhs_._name;
+        }
     };
 
     typedef std::deque<symbol> symbol_deque;
@@ -137,12 +142,13 @@ public:
         lexer_generator::build(rules_, _rule_lexer);
         _terminals.insert(string_tinfo_pair(string(1, '$'),
             token_info(0, 0, token_info::nonassoc)));
-        rules_.clear();
     }
 
     void clear()
     {
         _terminals.clear();
+        _terminals.insert(string_tinfo_pair(string(1, '$'),
+            token_info(0, 0, token_info::nonassoc)));
         _non_terminals.clear();
         _grammar.clear();
         _start.clear();
@@ -221,7 +227,7 @@ public:
         _start = start_;
     }
 
-    string start() const
+    const string &start() const
     {
         return _start;
     }
@@ -345,6 +351,21 @@ public:
     std::size_t npos() const
     {
         return ~0;
+    }
+
+    void copy_terminals(basic_rules &rhs_) const
+    {
+        rhs_._terminals = _terminals;
+        rhs_._next_precedence = _next_precedence;
+    }
+
+    void swap(basic_rules &rhs_)
+    {
+        _terminals.swap(rhs_._terminals);
+        _non_terminals.swap(rhs_._non_terminals);
+        _grammar.swap(rhs_._grammar);
+        _start.swap(rhs_._start);
+        std::swap(_next_precedence, rhs_._next_precedence);
     }
 
 private:
