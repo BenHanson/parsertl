@@ -258,7 +258,8 @@ public:
             // Check for %directives?
             _grammar[nt_iter_->second._first_production]._rhs.size() != 1)
         {
-            static char_type accept_[] = {'$', 'a', 'c', 'c', 'e', 'p', 't', 0};
+            static char_type accept_[] =
+                {'$', 'a', 'c', 'c', 'e', 'p', 't', 0};
 
             push_production(accept_, _start);
             _start = accept_;

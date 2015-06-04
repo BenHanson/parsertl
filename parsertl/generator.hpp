@@ -328,7 +328,8 @@ private:
                 {
                     case rules::symbol::TERMINAL:
                         index_ = dfa_[index_]._transitions.find
-                            (terminals_.find(iter_->_name)->second._id)->second;
+                            (terminals_.find(iter_->_name)->
+                                second._id)->second;
                         break;
                     case rules::symbol::NON_TERMINAL:
                         index_ = dfa_[index_]._transitions.find(nt_enums_.find
@@ -779,10 +780,10 @@ private:
                                         lstate_iter_ = nt_states_.find
                                             (nt_enums_.find(rhs_iter_->_name)->
                                             second);
-                                    typename size_t_nt_state_map::const_iterator
-                                        rstate_iter_ = nt_states_.find
-                                            (nt_enums_.find(production_._lhs)->
-                                            second);
+                                    typename size_t_nt_state_map::
+                                        const_iterator rstate_iter_ =
+                                            nt_states_.find(nt_enums_.find
+                                                (production_._lhs)->second);
                                     const std::size_t size_ = lstate_iter_->
                                         second._follow_set.size();
 
@@ -851,7 +852,8 @@ private:
                         typename size_t_nt_state_map::const_iterator nt_iter_ =
                             nt_states_.find(lhs_id_);
                         typename nt_state::size_t_set::const_iterator
-                            follow_iter_ = nt_iter_->second._follow_set.begin();
+                            follow_iter_ = nt_iter_->second.
+                                _follow_set.begin();
                         typename nt_state::size_t_set::const_iterator
                             follow_end_ = nt_iter_->second._follow_set.end();
 
@@ -863,7 +865,8 @@ private:
                                 [index_ * row_size_ + *follow_iter_];
 
                             fill_entry(configs_[index_], grammar_, terminals_,
-                                symbols_, *follow_iter_, lhs_, rhs_, warnings_);
+                                symbols_, *follow_iter_, lhs_, rhs_,
+                                warnings_);
                         }
                     }
                 }

@@ -260,6 +260,16 @@ struct parser
         return productions[productions.size() -
             sm._rules[entry->_param].second.size() + index_];
     }
+
+    std::size_t reduce_id() const
+    {
+        if (!entry || entry->_action != reduce)
+        {
+            throw runtime_error("Not in a reduce state!");
+        }
+
+        return sm._new_to_old[entry->_param];
+    }
 };
 }
 
