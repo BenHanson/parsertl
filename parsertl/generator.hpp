@@ -711,44 +711,18 @@ private:
 
                 for (; rhs_iter_ != rhs_end_; ++rhs_iter_)
                 {
-                    const symbol &sym1_ = *rhs_iter_;
-
                     if (rhs_iter_->_type == symbol::NON_TERMINAL)
                     {
                         typename symbol_deque::const_iterator next_iter_ =
                             rhs_iter_ + 1;
+                        typename size_t_nt_state_map::iterator
+                            lstate_iter_ = nt_states_.find
+                            (nt_enums_.find(rhs_iter_->_name)->second);
+                        const std::size_t size_ =
+                            lstate_iter_->second._follow_set.size();
 
-                        if (next_iter_ == rhs_end_)
+                        if (next_iter_ != rhs_end_)
                         {
-                            // If there is a production A -> aB
-                            // then everything in FOLLOW(A) is in FOLLOW(B).
-                            typename size_t_nt_state_map::iterator
-                                lstate_iter_ = nt_states_.find
-                                    (nt_enums_.find(rhs_iter_->_name)->second);
-                            typename size_t_nt_state_map::const_iterator
-                                rstate_iter_ = nt_states_.find
-                                    (nt_enums_.find(production_._lhs)->second);
-                            const std::size_t size_ =
-                                lstate_iter_->second._follow_set.size();
-
-                            lstate_iter_->second._follow_set.insert
-                                (rstate_iter_->second._follow_set.begin(),
-                                rstate_iter_->second._follow_set.end());
-
-                            if (size_ != lstate_iter_->second.
-                                _follow_set.size())
-                            {
-                                changes_ = true;
-                            }
-                        }
-                        else
-                        {
-                            typename size_t_nt_state_map::iterator
-                                lstate_iter_ = nt_states_.find
-                                    (nt_enums_.find(rhs_iter_->_name)->second);
-                            const std::size_t size_ =
-                                lstate_iter_->second._follow_set.size();
-
                             if (next_iter_->_type == symbol::TERMINAL)
                             {
                                 // Just add terminal.
@@ -763,43 +737,56 @@ private:
                                 // placed in FOLLOW(B).
                                 typename size_t_nt_state_map::const_iterator
                                     rstate_iter_ = nt_states_.find
-                                        (nt_enums_.find(next_iter_->_name)->
-                                        second);
+                                    (nt_enums_.find(next_iter_->_name)->
+                                    second);
 
                                 lstate_iter_->second._follow_set.insert
                                     (rstate_iter_->second._first_set.begin(),
                                     rstate_iter_->second._first_set.end());
+                                ++next_iter_;
 
-                                if (rstate_iter_->second._nullable &&
-                                    next_iter_ + 1 == rhs_end_)
+                                // If nullable, keep going
+                                for (; rstate_iter_->second._nullable &&
+                                    next_iter_ != rhs_end_; ++next_iter_)
                                 {
-                                    // If there is a production A -> aBb
-                                    // where b is nullable then everything in
-                                    // FOLLOW(A) is in FOLLOW(B).
-                                    typename size_t_nt_state_map::iterator
-                                        lstate_iter_ = nt_states_.find
-                                            (nt_enums_.find(rhs_iter_->_name)->
+                                    if (next_iter_->_type == symbol::TERMINAL)
+                                    {
+                                        // Just add terminal.
+                                        lstate_iter_->second._follow_set.insert
+                                            (terminals_.find(next_iter_->_name)->
+                                            second._id);
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        rstate_iter_ = nt_states_.find
+                                            (nt_enums_.find(next_iter_->_name)->
                                             second);
-                                    typename size_t_nt_state_map::
-                                        const_iterator rstate_iter_ =
-                                            nt_states_.find(nt_enums_.find
-                                                (production_._lhs)->second);
-                                    const std::size_t size_ = lstate_iter_->
-                                        second._follow_set.size();
-
-                                    lstate_iter_->second._follow_set.insert
-                                        (rstate_iter_->second.
-                                        _follow_set.begin(),
-                                        rstate_iter_->second.
-                                        _follow_set.end());
+                                        lstate_iter_->second._follow_set.insert
+                                            (rstate_iter_->second._first_set.begin(),
+                                            rstate_iter_->second._first_set.end());
+                                    }
                                 }
                             }
+                        }
 
-                            if (size_ != lstate_iter_->second.
-                                _follow_set.size())
-                            {
-                                changes_ = true;
-                            }
+                        if (next_iter_ == rhs_end_)
+                        {
+                            // If there is a production A -> aB
+                            // then everything in FOLLOW(A) is in FOLLOW(B).
+                            typename size_t_nt_state_map::const_iterator
+                                rstate_iter_ = nt_states_.find
+                                    (nt_enums_.find(production_._lhs)->second);
+
+                            lstate_iter_->second._follow_set.insert
+                                (rstate_iter_->second._follow_set.begin(),
+                                rstate_iter_->second._follow_set.end());
+                        }
+
+                        if (size_ != lstate_iter_->second.
+                            _follow_set.size())
+                        {
+                            changes_ = true;
                         }
                     }
                 }
