@@ -162,13 +162,13 @@ public:
 
     void left(const char_type *names_)
     {
-        token(names_, _next_precedence, token_info::right, "left");
+        token(names_, _next_precedence, token_info::left, "left");
         ++_next_precedence;
     }
 
     void right(const char_type *names_)
     {
-        token(names_, _next_precedence, token_info::left, "right");
+        token(names_, _next_precedence, token_info::right, "right");
         ++_next_precedence;
     }
 
