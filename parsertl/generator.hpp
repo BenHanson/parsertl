@@ -109,6 +109,7 @@ private:
     {
         string _lhs;
         size_t_pair _lhs_indexes;
+        string _precedence;
         symbol_deque _rhs;
         std::vector<size_t_pair> _rhs_indexes;
     };
@@ -300,12 +301,11 @@ private:
             new_grammar_.push_back(prod());
             prod_ = &new_grammar_.back();
             prod_->_lhs = production_._lhs;
+            prod_->_precedence = production_._prec_name;
             prod_->_rhs = production_._rhs;
 
             if (production_._lhs != start_)
             {
-                std::basic_ostringstream<typename rules::char_type> ss_;
-
                 prod_->_lhs_indexes.first = trie_.first;
                 prod_->_lhs_indexes.second =
                     dfa_[trie_.first]._transitions.find(nt_enums_.find
@@ -319,8 +319,6 @@ private:
             for (rhs_iter iter_ = production_._rhs.begin(),
                 end_ = production_._rhs.end(); iter_ != end_; ++iter_)
             {
-                std::basic_ostringstream<typename rules::char_type> ss_;
-
                 prod_->_rhs_indexes.push_back(size_t_pair());
                 prod_->_rhs_indexes.back().first = index_;
 
@@ -455,7 +453,8 @@ private:
             string rhs_;
             const std::size_t size_ = iter_->_rhs.size();
 
-            if (iter_->_lhs == start_)
+            if (iter_->_lhs_indexes.first == 0 &&
+                iter_->_lhs_indexes.second == 0)
             {
                 lhs_ = iter_->_lhs;
             }
@@ -495,6 +494,15 @@ private:
 
             if (!(dollar_ && lhs_ == start_))
             {
+                if (!iter_->_precedence.empty())
+                {
+                    typename rules::char_type prec_[] =
+                        {' ', '%', 'p', 'r', 'e', 'c', ' ', 0};
+
+                    rhs_ += prec_;
+                    rhs_ += iter_->_precedence;
+                }
+
                 new_rules_.push(lhs_.c_str(), rhs_.c_str());
             }
         }
@@ -900,8 +908,15 @@ private:
 
         if (rhs_._action == error)
         {
-            // No conflict
-            rhs_ = lhs_;
+            if (rhs_._action == syntax_error)
+            {
+                // No conflict
+                rhs_ = lhs_;
+            }
+            else
+            {
+                error_ = true;
+            }
         }
         else
         {
@@ -962,29 +977,34 @@ private:
                 }
                 else if (lhs_prec_ == rhs_prec_)
                 {
-                    if (lhs_assoc_ == token_info::right)
+                    switch (lhs_assoc_)
                     {
-                        rhs_ = lhs_;
-                    }
-                    else if (lhs_assoc_ != token_info::left)
-                    {
-                        // Favour shift
-                        if (warnings_)
-                        {
-                            std::ostringstream ss_;
+                        case token_info::precedence:
+                            // Favour shift
+                            if (warnings_)
+                            {
+                                std::ostringstream ss_;
 
-                            ss_ << actions_[lhs_._action];
-                            dump_action(config_, grammar_, symbols_,
-                                id_, lhs_, ss_);
-                            ss_ << '/' << actions_[rhs_._action];
-                            dump_action(config_, grammar_, symbols_,
-                                id_, rhs_, ss_);
-                            ss_ << " conflict.\n";
-                            *warnings_ += ss_.str();
-                        }
+                                ss_ << actions_[lhs_._action];
+                                dump_action(config_, grammar_, symbols_,
+                                    id_, lhs_, ss_);
+                                ss_ << '/' << actions_[rhs_._action];
+                                dump_action(config_, grammar_, symbols_,
+                                    id_, rhs_, ss_);
+                                ss_ << " conflict.\n";
+                                *warnings_ += ss_.str();
+                            }
 
-                        // Assign new value after warning!
-                        rhs_ = lhs_;
+                            // Assign new value after warning!
+                            rhs_ = lhs_;
+                            break;
+                        case token_info::nonassoc:
+                            rhs_._action = error;
+                            rhs_._param = non_associative;
+                            break;
+                        case token_info::right:
+                            rhs_ = lhs_;
+                            break;
                     }
                 }
                 else if (lhs_prec_ > rhs_prec_)

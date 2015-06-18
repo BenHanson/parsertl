@@ -66,6 +66,7 @@ public:
     {
         string _lhs;
         std::size_t _precedence;
+        string _prec_name;
         symbol_deque _rhs;
         std::size_t _index;
         std::size_t _next_lhs;
@@ -81,6 +82,7 @@ public:
         {
             _lhs.clear();
             _precedence = 0;
+            _prec_name.clear();
             _rhs.clear();
             _index = ~0;
             _next_lhs = ~0;
@@ -584,6 +586,7 @@ private:
                     }
 
                     production_._precedence = term_iter_->second._precedence;
+                    production_._prec_name = token_;
                     break;
                 }
                 case OR:

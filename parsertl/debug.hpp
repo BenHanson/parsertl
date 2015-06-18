@@ -93,8 +93,7 @@ public:
         {
             if (seen_.find(iter_->_lhs) == seen_.end())
             {
-                typename production_deque::const_iterator lhs_iter_ =
-                    iter_;
+                typename production_deque::const_iterator lhs_iter_ = iter_;
                 std::size_t index_ = lhs_iter_ - grammar_.begin();
 
                 stream_ << lhs_iter_->_lhs;
@@ -208,23 +207,48 @@ public:
 
         for (std::size_t row_ = 0; row_ < sm_._rows; ++row_)
         {
+            std::size_t max_ = 0;
+
             state(row_, stream_);
 
-            for (std::size_t colummn_ = 0; colummn_ < sm_._columns; ++colummn_)
+            for (std::size_t column_ = 0; column_ < sm_._columns; ++column_)
+            {
+                const parsertl::state_machine::entry &entry_ =
+                    (&*iter_)[column_];
+
+                if (!(entry_._action == parsertl::error &&
+                    entry_._param == syntax_error))
+                {
+                    max_ = std::max(max_, symbols_.find(column_)->
+                        second.size());
+                }
+            }
+
+            for (std::size_t column_ = 0; column_ < sm_._columns; ++column_)
             {
                 const parsertl::state_machine::entry &entry_ =
                     *iter_++;
 
-                if (entry_._action != parsertl::error)
+                if (!(entry_._action == parsertl::error &&
+                    entry_._param == syntax_error))
                 {
+                    const std::string &name_ = symbols_.find(column_)->second;
+
                     stream_ << ' ';
                     stream_ << ' ';
-                    stream_ << symbols_.find(colummn_)->second;
-                    arrow(stream_);
+                    stream_ << name_;
+                    stream_ << string(max_ + 2 - name_.size(), ' ');
                 }
 
                 switch (entry_._action)
                 {
+                case parsertl::error:
+                    if (entry_._param == non_associative)
+                    {
+                        error(stream_);
+                    }
+
+                    break;
                 case parsertl::shift:
                     shift(stream_);
                     stream_ << entry_._param;
@@ -232,6 +256,11 @@ public:
                 case parsertl::reduce:
                     reduce(stream_);
                     stream_ << entry_._param;
+                    stream_ << ' ';
+                    stream_ << '(';
+                    stream_ << symbols_.find
+                        (sm_._rules[entry_._param].first)->second;
+                    stream_ << ')';
                     break;
                 case parsertl::go_to:
                     ogoto(stream_);
@@ -242,7 +271,8 @@ public:
                     break;
                 }
 
-                if (entry_._action != parsertl::error)
+                if (!(entry_._action == parsertl::error &&
+                    entry_._param == syntax_error))
                 {
                     stream_ << '\n';
                 }
@@ -388,54 +418,54 @@ private:
         stream_ << L"State " << row_ << L":\n";
     }
 
-    static void arrow(std::ostream &stream_)
+    static void error(std::ostream &stream_)
     {
-        stream_ << " -> ";
+        stream_ << "error (nonassociative)";
     }
 
-    static void arrow(std::wostream &stream_)
+    static void error(std::wostream &stream_)
     {
-        stream_ << L" -> ";
+        stream_ << L"error (nonassociative)";
     }
 
     static void shift(std::ostream &stream_)
     {
-        stream_ << "SHIFT ";
+        stream_ << "shift, and go to state ";
     }
 
     static void shift(std::wostream &stream_)
     {
-        stream_ << L"SHIFT ";
+        stream_ << L"shift, and go to state ";
     }
 
     static void reduce(std::ostream &stream_)
     {
-        stream_ << "REDUCE ";
+        stream_ << "reduce using rule ";
     }
 
     static void reduce(std::wostream &stream_)
     {
-        stream_ << L"REDUCE ";
+        stream_ << L"reduce using rule ";
     }
 
     static void ogoto(std::ostream &stream_)
     {
-        stream_ << "GOTO ";
+        stream_ << "go to state ";
     }
 
     static void ogoto(std::wostream &stream_)
     {
-        stream_ << L"GOTO ";
+        stream_ << L"go to state ";
     }
 
     static void accept(std::ostream &stream_)
     {
-        stream_ << "ACCEPT";
+        stream_ << "accept";
     }
 
     static void accept(std::wostream &stream_)
     {
-        stream_ << L"ACCEPT";
+        stream_ << L"accept";
     }
 };
 

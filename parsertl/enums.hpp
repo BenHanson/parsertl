@@ -9,7 +9,7 @@
 namespace parsertl
 {
 enum action {error, shift, reduce, go_to, accept};
-enum error_type {unknown_token, syntax_error};
+enum error_type {syntax_error, non_associative};
 }
 
 #endif
