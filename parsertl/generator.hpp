@@ -761,18 +761,20 @@ private:
                                     {
                                         // Just add terminal.
                                         lstate_iter_->second._follow_set.insert
-                                            (terminals_.find(next_iter_->_name)->
-                                            second._id);
+                                            (terminals_.find
+                                            (next_iter_->_name)->second._id);
                                         break;
                                     }
                                     else
                                     {
                                         rstate_iter_ = nt_states_.find
-                                            (nt_enums_.find(next_iter_->_name)->
-                                            second);
+                                            (nt_enums_.find
+                                            (next_iter_->_name)->second);
                                         lstate_iter_->second._follow_set.insert
-                                            (rstate_iter_->second._first_set.begin(),
-                                            rstate_iter_->second._first_set.end());
+                                            (rstate_iter_->
+                                            second._first_set.begin(),
+                                            rstate_iter_->
+                                            second._first_set.end());
                                     }
                                 }
                             }
@@ -817,6 +819,8 @@ private:
         sm_._columns = terminals_.size() + nt_enums_.size();
         sm_._rows = dfa_.size();
         sm_._table.resize(sm_._columns * sm_._rows);
+        // Accepting state
+        sm_._table[nt_enums_.find(start_)->second]._action = accept;
 
         for (std::size_t index_ = 0; index_ < size_; ++index_)
         {
@@ -828,41 +832,26 @@ private:
 
                 if (production_._rhs.size() == iter_->second)
                 {
-                    // Cursor at end
-                    if (production_._lhs == start_)
-                    {
-                        typename state_machine::entry lhs_;
-                        typename state_machine::entry &rhs_ =
-                            sm_._table[index_ * row_size_];
+                    const std::size_t lhs_id_ =
+                        nt_enums_.find(production_._lhs)->second;
+                    typename size_t_nt_state_map::const_iterator nt_iter_ =
+                        nt_states_.find(lhs_id_);
+                    typename nt_state::size_t_set::const_iterator
+                        follow_iter_ = nt_iter_->second.
+                            _follow_set.begin();
+                    typename nt_state::size_t_set::const_iterator
+                        follow_end_ = nt_iter_->second._follow_set.end();
 
-                        // Accepting state
-                        lhs_._action = accept;
+                    for (; follow_iter_ != follow_end_; ++follow_iter_)
+                    {
+                        typename state_machine::entry lhs_
+                            (reduce, production_._index);
+                        typename state_machine::entry &rhs_ = sm_._table
+                            [index_ * row_size_ + *follow_iter_];
+
                         fill_entry(configs_[index_], grammar_, terminals_,
-                            symbols_, 0, lhs_, rhs_, warnings_);
-                    }
-                    else
-                    {
-                        const std::size_t lhs_id_ =
-                            nt_enums_.find(production_._lhs)->second;
-                        typename size_t_nt_state_map::const_iterator nt_iter_ =
-                            nt_states_.find(lhs_id_);
-                        typename nt_state::size_t_set::const_iterator
-                            follow_iter_ = nt_iter_->second.
-                                _follow_set.begin();
-                        typename nt_state::size_t_set::const_iterator
-                            follow_end_ = nt_iter_->second._follow_set.end();
-
-                        for (; follow_iter_ != follow_end_; ++follow_iter_)
-                        {
-                            typename state_machine::entry lhs_
-                                (reduce, production_._index);
-                            typename state_machine::entry &rhs_ = sm_._table
-                                [index_ * row_size_ + *follow_iter_];
-
-                            fill_entry(configs_[index_], grammar_, terminals_,
-                                symbols_, *follow_iter_, lhs_, rhs_,
-                                warnings_);
-                        }
+                            symbols_, *follow_iter_, lhs_, rhs_,
+                            warnings_);
                     }
                 }
             }
