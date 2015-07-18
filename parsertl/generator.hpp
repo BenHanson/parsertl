@@ -908,7 +908,7 @@ private:
 
         if (rhs_._action == error)
         {
-            if (rhs_._action == syntax_error)
+            if (rhs_._param == syntax_error)
             {
                 // No conflict
                 rhs_ = lhs_;
