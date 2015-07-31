@@ -116,15 +116,16 @@ void read_bison(const char *start_, const char *end_, rules &rules_)
 
     parser_.init(iter_);
 
-    while (parser_.entry && parser_.entry->_action != parsertl::accept)
+    while (parser_.entry._action != parsertl::error &&
+        parser_.entry._action != parsertl::accept)
     {
-        switch (parser_.entry->_action)
+        switch (parser_.entry._action)
         {
             case parsertl::error:
                 throw std::runtime_error("Syntax error");
                 break;
             case parsertl::reduce:
-                if (parser_.entry->_param == token_index_)
+                if (parser_.entry._param == token_index_)
                 {
                     const parser::token &token_ =
                         parser_.dollar(1, productions_);
@@ -132,7 +133,7 @@ void read_bison(const char *start_, const char *end_, rules &rules_)
 
                     rules_.token(str_.c_str());
                 }
-                else if (parser_.entry->_param == left_index_)
+                else if (parser_.entry._param == left_index_)
                 {
                     const parser::token &token_ =
                         parser_.dollar(1, productions_);
@@ -140,7 +141,7 @@ void read_bison(const char *start_, const char *end_, rules &rules_)
 
                     rules_.left(str_.c_str());
                 }
-                else if (parser_.entry->_param == right_index_)
+                else if (parser_.entry._param == right_index_)
                 {
                     const parser::token &token_ =
                         parser_.dollar(1, productions_);
@@ -148,7 +149,7 @@ void read_bison(const char *start_, const char *end_, rules &rules_)
 
                     rules_.right(str_.c_str());
                 }
-                else if (parser_.entry->_param == nonassoc_index_)
+                else if (parser_.entry._param == nonassoc_index_)
                 {
                     const parser::token &token_ =
                         parser_.dollar(1, productions_);
@@ -156,7 +157,7 @@ void read_bison(const char *start_, const char *end_, rules &rules_)
 
                     rules_.nonassoc(str_.c_str());
                 }
-                else if (parser_.entry->_param == precedence_index_)
+                else if (parser_.entry._param == precedence_index_)
                 {
                     const parser::token &token_ =
                         parser_.dollar(1, productions_);
@@ -164,14 +165,14 @@ void read_bison(const char *start_, const char *end_, rules &rules_)
 
                     rules_.precedence(str_.c_str());
                 }
-                else if (parser_.entry->_param == start_index_)
+                else if (parser_.entry._param == start_index_)
                 {
                     const parser::token &name_ =
                         parser_.dollar(1, productions_);
 
                     rules_.start(std::string(name_.start, name_.end).c_str());
                 }
-                else if (parser_.entry->_param == prod_index_)
+                else if (parser_.entry._param == prod_index_)
                 {
                     const parser::token &lhs_ = parser_.dollar(0, productions_);
                     const parser::token &rhs_ = parser_.dollar(2, productions_);
@@ -185,11 +186,6 @@ void read_bison(const char *start_, const char *end_, rules &rules_)
         }
 
         parser_.next(iter_, productions_);
-    }
-
-    if (!parser_.entry)
-    {
-        throw std::runtime_error("Unknown token");
     }
 }
 }

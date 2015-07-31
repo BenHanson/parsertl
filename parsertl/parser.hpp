@@ -49,11 +49,10 @@ struct parser
     state_machine sm;
     std::vector<std::size_t> stack;
     std::size_t token_id;
-    state_machine::entry *entry;
+    state_machine::entry entry;
 
     parser() :
-        token_id(iterator::value_type::npos()),
-        entry(0)
+        token_id(iterator::value_type::npos())
     {
     }
 
@@ -65,11 +64,11 @@ struct parser
 
         if (token_id == iterator::value_type::npos())
         {
-            entry = 0;
+            entry.clear();
         }
         else
         {
-            entry = &sm._table[stack.back() * sm._columns + token_id];
+            entry = sm._table[stack.back() * sm._columns + token_id];
         }
     }
 
@@ -83,31 +82,31 @@ struct parser
         sm.clear();
         stack.clear();
         token_id = iterator::value_type::npos();
-        entry = 0;
+        entry.clear();
     }
 
     // Parse entire sequence and return boolean
     bool parse(iterator &iter_)
     {
-        while (entry && entry->_action != error &&
-            entry->_action != accept)
+        while (entry._action != error && entry._action != accept)
         {
-            switch (entry->_action)
+            switch (entry._action)
             {
             case error:
                 break;
             case shift:
-                stack.push_back(entry->_param);
+                stack.push_back(entry._param);
                 ++iter_;
                 token_id = iter_->id;
 
                 if (token_id == iterator::value_type::npos())
                 {
-                    entry = 0;
+                    entry._action = error;
+                    entry._param = unknown_token;
                 }
                 else
                 {
-                    entry = &sm._table[stack.back() *
+                    entry = sm._table[stack.back() *
                         sm._columns + token_id];
                 }
 
@@ -115,56 +114,57 @@ struct parser
             case reduce:
             {
                 const std::size_t size_ =
-                    sm._rules[entry->_param].second.size();
+                    sm._rules[entry._param].second.size();
 
                 if (size_)
                 {
                     stack.resize(stack.size() - size_);
                 }
 
-                token_id = sm._rules[entry->_param].first;
-                entry = &sm._table[stack.back() * sm._columns + token_id];
+                token_id = sm._rules[entry._param].first;
+                entry = sm._table[stack.back() * sm._columns + token_id];
                 break;
             }
             case go_to:
-                stack.push_back(entry->_param);
+                stack.push_back(entry._param);
                 token_id = iter_->id;
-                entry = &sm._table[stack.back() * sm._columns + token_id];
+                entry = sm._table[stack.back() * sm._columns + token_id];
                 break;
             case accept:
                 break;
             }
         }
 
-        return entry && entry->_action == accept;
+        return entry._action == accept;
     }
 
     // parse sequence but do not keep track of productions
     void next(iterator &iter_)
     {
-        switch (entry->_action)
+        switch (entry._action)
         {
             case error:
                 break;
             case shift:
-                stack.push_back(entry->_param);
+                stack.push_back(entry._param);
                 ++iter_;
                 token_id = iter_->id;
 
                 if (token_id == iterator::value_type::npos())
                 {
-                    entry = 0;
+                    entry._action = error;
+                    entry._param = unknown_token;
                 }
                 else
                 {
-                    entry = &sm._table[stack.back() * sm._columns + token_id];
+                    entry = sm._table[stack.back() * sm._columns + token_id];
                 }
 
                 break;
             case reduce:
             {
                 const std::size_t size_ =
-                    sm._rules[entry->_param].second.size();
+                    sm._rules[entry._param].second.size();
                 token token_;
 
                 if (size_)
@@ -176,15 +176,15 @@ struct parser
                     token_.start = token_.end = iter_->start;
                 }
 
-                token_id = sm._rules[entry->_param].first;
-                entry = &sm._table[stack.back() * sm._columns + token_id];
+                token_id = sm._rules[entry._param].first;
+                entry = sm._table[stack.back() * sm._columns + token_id];
                 token_.id = token_id;
                 break;
             }
             case go_to:
-                stack.push_back(entry->_param);
+                stack.push_back(entry._param);
                 token_id = iter_->id;
-                entry = &sm._table[stack.back() * sm._columns + token_id];
+                entry = sm._table[stack.back() * sm._columns + token_id];
                 break;
             case accept:
                 break;
@@ -194,12 +194,12 @@ struct parser
     // Parse sequence and maintain production vector
     void next(iterator &iter_, token_vector &productions)
     {
-        switch (entry->_action)
+        switch (entry._action)
         {
         case error:
             break;
         case shift:
-            stack.push_back(entry->_param);
+            stack.push_back(entry._param);
             productions.push_back
                 (token(iter_->id, iter_->start, iter_->end));
             ++iter_;
@@ -207,18 +207,19 @@ struct parser
 
             if (token_id == iterator::value_type::npos())
             {
-                entry = 0;
+                entry._action = error;
+                entry._param = unknown_token;
             }
             else
             {
-                entry = &sm._table[stack.back() * sm._columns + token_id];
+                entry = sm._table[stack.back() * sm._columns + token_id];
             }
 
             break;
         case reduce:
         {
             const std::size_t size_ =
-                sm._rules[entry->_param].second.size();
+                sm._rules[entry._param].second.size();
             token token_;
 
             if (size_)
@@ -233,16 +234,16 @@ struct parser
                 token_.start = token_.end = iter_->start;
             }
 
-            token_id = sm._rules[entry->_param].first;
-            entry = &sm._table[stack.back() * sm._columns + token_id];
+            token_id = sm._rules[entry._param].first;
+            entry = sm._table[stack.back() * sm._columns + token_id];
             token_.id = token_id;
             productions.push_back(token_);
             break;
         }
         case go_to:
-            stack.push_back(entry->_param);
+            stack.push_back(entry._param);
             token_id = iter_->id;
-            entry = &sm._table[stack.back() * sm._columns + token_id];
+            entry = sm._table[stack.back() * sm._columns + token_id];
             break;
         case accept:
             break;
@@ -252,23 +253,23 @@ struct parser
     const typename parser::token &dollar(const std::size_t index_,
         const token_vector &productions)
     {
-        if (!entry || entry->_action != reduce)
+        if (entry._action != reduce)
         {
             throw runtime_error("Not in a reduce state!");
         }
 
         return productions[productions.size() -
-            sm._rules[entry->_param].second.size() + index_];
+            sm._rules[entry._param].second.size() + index_];
     }
 
     std::size_t reduce_id() const
     {
-        if (!entry || entry->_action != reduce)
+        if (entry._action != reduce)
         {
             throw runtime_error("Not in a reduce state!");
         }
 
-        return sm._new_to_old[entry->_param];
+        return sm._new_to_old[entry._param];
     }
 };
 }
