@@ -52,6 +52,11 @@ public:
 
         rewrite(rules_, start_, configs_, dfa_, terminals_, nt_enums_,
             new_old_map_);
+
+        // Make sure $accept is mapped.
+        if (start_[0] == '$')
+            new_old_map_[new_old_map_.size()] = grammar_.size() - 1;
+
         rules_.symbols(symbols_);
         enumerate_non_terminals(grammar_, terminals_.size(), nt_enums_);
         iter_ = nts_.find(start_);
@@ -298,6 +303,9 @@ private:
             const production &production_ = grammar_[trie_.second.first];
             prod *prod_ = 0;
 
+            // Don't include $accept
+            if (production_._lhs[0] == '$') continue;
+
             new_grammar_.push_back(prod());
             prod_ = &new_grammar_.back();
             prod_->_lhs = production_._lhs;
@@ -424,14 +432,12 @@ private:
         for (typename prod_deque::const_iterator iter_ = grammar_.begin(),
             end_ = grammar_.end(); iter_ != end_; ++iter_, ++dest_idx_)
         {
-            std::size_t idx_ = 0;
-
             for (typename grammar::const_iterator src_ = orig_.begin(),
-                src_end_ = orig_.end(); src_ != src_end_; ++src_, ++idx_)
+                src_end_ = orig_.end(); src_ != src_end_; ++src_)
             {
                 if (iter_->_lhs == src_->_lhs && iter_->_rhs == src_->_rhs)
                 {
-                    new_old_map_[dest_idx_] = idx_;
+                    new_old_map_[dest_idx_] = src_->_index;
                 }
             }
         }
