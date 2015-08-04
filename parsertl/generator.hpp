@@ -319,22 +319,22 @@ private:
             for (rhs_iter iter_ = production_._rhs.begin(),
                 end_ = production_._rhs.end(); iter_ != end_; ++iter_)
             {
+                std::size_t id_ = ~0;
+
                 prod_->_rhs_indexes.push_back(size_t_pair());
                 prod_->_rhs_indexes.back().first = index_;
 
                 switch (iter_->_type)
                 {
                     case rules::symbol::TERMINAL:
-                        index_ = dfa_[index_]._transitions.find
-                            (terminals_.find(iter_->_name)->
-                                second._id)->second;
+                        id_ = terminals_.find(iter_->_name)->second._id;
                         break;
                     case rules::symbol::NON_TERMINAL:
-                        index_ = dfa_[index_]._transitions.find(nt_enums_.find
-                            (iter_->_name)->second)->second;
+                        id_ = nt_enums_.find(iter_->_name)->second;
                         break;
                 }
 
+                index_ = dfa_[index_]._transitions.find(id_)->second;
                 prod_->_rhs_indexes.back().second = index_;
             }
         }

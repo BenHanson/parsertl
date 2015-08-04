@@ -64,7 +64,8 @@ struct parser
 
         if (token_id == iterator::value_type::npos())
         {
-            entry.clear();
+            entry._action = error;
+            entry._param = unknown_token;
         }
         else
         {
