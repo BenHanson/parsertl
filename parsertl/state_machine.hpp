@@ -48,7 +48,6 @@ namespace parsertl
         std::size_t _columns;
         std::size_t _rows;
         rules _rules;
-        size_t_vector _new_to_old;
 
         state_machine() :
             _columns(0),
@@ -61,7 +60,6 @@ namespace parsertl
             _table.clear();
             _columns = _rows = 0;
             _rules.clear();
-            _new_to_old.clear();
         }
     };
 }

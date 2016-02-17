@@ -89,7 +89,7 @@ struct parser
     // Parse entire sequence and return boolean
     bool parse(iterator &iter_)
     {
-        while (entry._action != error && entry._action != accept)
+        while (entry._action != error)
         {
             switch (entry._action)
             {
@@ -97,7 +97,12 @@ struct parser
                 break;
             case shift:
                 stack.push_back(entry._param);
-                ++iter_;
+
+                if (token_id != 0)
+                {
+                    ++iter_;
+                }
+
                 token_id = iter_->id;
 
                 if (token_id == iterator::value_type::npos())
@@ -131,7 +136,18 @@ struct parser
                 token_id = iter_->id;
                 entry = sm._table[stack.back() * sm._columns + token_id];
                 break;
-            case accept:
+            }
+
+            if (entry._action == accept)
+            {
+                const std::size_t size_ =
+                    sm._rules[entry._param].second.size();
+
+                if (size_)
+                {
+                    stack.resize(stack.size() - size_);
+                }
+
                 break;
             }
         }
@@ -148,7 +164,12 @@ struct parser
                 break;
             case shift:
                 stack.push_back(entry._param);
-                ++iter_;
+
+                if (token_id != 0)
+                {
+                    ++iter_;
+                }
+
                 token_id = iter_->id;
 
                 if (token_id == iterator::value_type::npos())
@@ -188,7 +209,17 @@ struct parser
                 entry = sm._table[stack.back() * sm._columns + token_id];
                 break;
             case accept:
+            {
+                const std::size_t size_ =
+                    sm._rules[entry._param].second.size();
+
+                if (size_)
+                {
+                    stack.resize(stack.size() - size_);
+                }
+
                 break;
+            }
         }
     }
 
@@ -197,57 +228,72 @@ struct parser
     {
         switch (entry._action)
         {
-        case error:
-            break;
-        case shift:
-            stack.push_back(entry._param);
-            productions.push_back
-                (token(iter_->id, iter_->start, iter_->end));
-            ++iter_;
-            token_id = iter_->id;
+            case error:
+                break;
+            case shift:
+                stack.push_back(entry._param);
+                productions.push_back
+                    (token(iter_->id, iter_->start, iter_->end));
 
-            if (token_id == iterator::value_type::npos())
+                if (token_id != 0)
+                {
+                    ++iter_;
+                }
+
+                token_id = iter_->id;
+
+                if (token_id == iterator::value_type::npos())
+                {
+                    entry._action = error;
+                    entry._param = unknown_token;
+                }
+                else
+                {
+                    entry = sm._table[stack.back() * sm._columns + token_id];
+                }
+
+                break;
+            case reduce:
             {
-                entry._action = error;
-                entry._param = unknown_token;
-            }
-            else
-            {
+                const std::size_t size_ =
+                    sm._rules[entry._param].second.size();
+                token token_;
+
+                if (size_)
+                {
+                    token_.start = (productions.end() - size_)->start;
+                    token_.end = productions.back().end;
+                    stack.resize(stack.size() - size_);
+                    productions.resize(productions.size() - size_);
+                }
+                else
+                {
+                    token_.start = token_.end = iter_->start;
+                }
+
+                token_id = sm._rules[entry._param].first;
                 entry = sm._table[stack.back() * sm._columns + token_id];
+                token_.id = token_id;
+                productions.push_back(token_);
+                break;
             }
-
-            break;
-        case reduce:
-        {
-            const std::size_t size_ =
-                sm._rules[entry._param].second.size();
-            token token_;
-
-            if (size_)
+            case go_to:
+                stack.push_back(entry._param);
+                token_id = iter_->id;
+                entry = sm._table[stack.back() * sm._columns + token_id];
+                break;
+            case accept:
             {
-                token_.start = (productions.end() - size_)->start;
-                token_.end = productions.back().end;
-                stack.resize(stack.size() - size_);
-                productions.resize(productions.size() - size_);
-            }
-            else
-            {
-                token_.start = token_.end = iter_->start;
-            }
+                const std::size_t size_ =
+                    sm._rules[entry._param].second.size();
 
-            token_id = sm._rules[entry._param].first;
-            entry = sm._table[stack.back() * sm._columns + token_id];
-            token_.id = token_id;
-            productions.push_back(token_);
-            break;
-        }
-        case go_to:
-            stack.push_back(entry._param);
-            token_id = iter_->id;
-            entry = sm._table[stack.back() * sm._columns + token_id];
-            break;
-        case accept:
-            break;
+                if (size_)
+                {
+                    stack.resize(stack.size() - size_);
+                }
+
+                break;
+            }
         }
     }
 
@@ -270,7 +316,7 @@ struct parser
             throw runtime_error("Not in a reduce state!");
         }
 
-        return sm._new_to_old[entry._param];
+        return entry._param;
     }
 };
 }

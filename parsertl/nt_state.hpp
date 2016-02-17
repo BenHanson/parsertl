@@ -11,8 +11,6 @@
 
 namespace parsertl
 {
-namespace detail
-{
 struct nt_state
 {
     typedef std::set<std::size_t> size_t_set;
@@ -28,7 +26,6 @@ struct nt_state
 
 typedef std::map<std::size_t, nt_state> size_t_nt_state_map;
 typedef std::pair<std::size_t, nt_state> size_t_nt_state_pair;
-}
 }
 
 #endif

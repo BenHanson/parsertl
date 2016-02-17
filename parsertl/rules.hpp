@@ -19,6 +19,7 @@ class basic_rules
 public:
     typedef T char_type;
     typedef std::basic_string<char_type> string;
+    typedef std::map<string, std::size_t> nt_enum_map;
 
     struct symbol
     {
@@ -59,15 +60,32 @@ public:
         }
     };
 
-    typedef std::map<string, non_terminal> nt_map;
-    typedef std::pair<string, non_terminal> nt_pair;
+    typedef std::map<string, non_terminal> non_terminal_map;
+    typedef std::pair<string, non_terminal> non_terminal_pair;
+
+    struct lr_symbols
+    {
+        string _lhs;
+        symbol_deque _rhs;
+
+        void clear()
+        {
+            _lhs.clear();
+            _rhs.clear();
+        }
+
+        bool operator==(const lr_symbols &r_) const
+        {
+            return _lhs == r_._lhs &&
+                _rhs == r_._rhs;
+        }
+    };
 
     struct production
     {
-        string _lhs;
+        lr_symbols _symbols;
         std::size_t _precedence;
         string _prec_name;
-        symbol_deque _rhs;
         std::size_t _index;
         std::size_t _next_lhs;
 
@@ -80,10 +98,9 @@ public:
 
         void clear()
         {
-            _lhs.clear();
+            _symbols.clear();
             _precedence = 0;
             _prec_name.clear();
-            _rhs.clear();
             _index = ~0;
             _next_lhs = ~0;
         }
@@ -243,12 +260,14 @@ public:
 
         if (_start.empty())
         {
-            _start = _grammar[0]._lhs;
+            _start = _grammar[0]._symbols._lhs;
         }
 
         // Validate start rule
-        typename nt_map::const_iterator nt_iter_ = _non_terminals.find(_start);
-        typename nt_map::const_iterator nt_end_ = _non_terminals.end();
+        typename non_terminal_map::const_iterator nt_iter_ =
+            _non_terminals.find(_start);
+        typename non_terminal_map::const_iterator nt_end_ =
+            _non_terminals.end();
 
         if (nt_iter_ == nt_end_)
         {
@@ -258,12 +277,16 @@ public:
         if (nt_iter_->second._first_production !=
             nt_iter_->second._last_production ||
             // Check for %directives?
-            _grammar[nt_iter_->second._first_production]._rhs.size() != 1)
+            _grammar[nt_iter_->second._first_production]._symbols.
+                _rhs.size() != 1)
         {
             static char_type accept_[] =
                 {'$', 'a', 'c', 'c', 'e', 'p', 't', 0};
+            string rhs_ = _start;
 
-            push_production(accept_, _start);
+            push_production(accept_, rhs_);
+            _grammar.back()._symbols._rhs.push_back
+                (symbol(symbol::TERMINAL, string(1, '$')));
             _start = accept_;
         }
         else
@@ -271,19 +294,22 @@ public:
             typename production_deque::const_iterator iter_ = _grammar.begin();
             typename production_deque::const_iterator end_ = _grammar.end();
 
+            _grammar[nt_iter_->second._first_production]._symbols._rhs.
+                push_back(symbol(symbol::TERMINAL, string(1, '$')));
+
             for (; iter_ != end_; ++iter_)
             {
                 typename symbol_deque::const_iterator sym_iter_ =
-                    iter_->_rhs.begin();
+                    iter_->_symbols._rhs.begin();
                 typename symbol_deque::const_iterator sym_end_ =
-                    iter_->_rhs.end();
+                    iter_->_symbols._rhs.end();
 
                 for (; sym_iter_ != sym_end_; ++sym_iter_)
                 {
                     if (sym_iter_->_name == _start)
                     {
                         std::ostringstream ss_;
-                        const char_type *name_ = iter_->_lhs.c_str();
+                        const char_type *name_ = iter_->_symbols._lhs.c_str();
 
                         ss_ << "The start symbol occurs on the RHS of rule '";
                         narrow(name_, ss_);
@@ -322,7 +348,7 @@ public:
         return _terminals;
     }
 
-    const nt_map &non_terminals() const
+    const non_terminal_map &non_terminals() const
     {
         return _non_terminals;
     }
@@ -343,10 +369,10 @@ public:
         for (typename production_deque::const_iterator iter_ =
             _grammar.begin(), end_ = _grammar.end(); iter_ != end_; ++iter_)
         {
-            if (nts_.find(iter_->_lhs) == nts_.end())
+            if (nts_.find(iter_->_symbols._lhs) == nts_.end())
             {
-                map_.insert(symbol_pair(map_.size(), iter_->_lhs));
-                nts_.insert(iter_->_lhs);
+                map_.insert(symbol_pair(map_.size(), iter_->_symbols._lhs));
+                nts_.insert(iter_->_symbols._lhs);
             }
         }
     }
@@ -387,7 +413,7 @@ private:
     lexer_state_machine _rule_lexer;
     lexer_state_machine _token_lexer;
     terminal_map _terminals;
-    nt_map _non_terminals;
+    non_terminal_map _non_terminals;
     production_deque _grammar;
     string _start;
     std::size_t _next_precedence;
@@ -484,7 +510,8 @@ private:
 
     void push_production(const string &lhs_, const string &rhs_)
     {
-        typename nt_map::iterator nt_iter_ = _non_terminals.find(lhs_);
+        typename non_terminal_map::iterator nt_iter_ =
+            _non_terminals.find(lhs_);
         production production_(_grammar.size());
         lexer_iterator iter_(rhs_.c_str(), rhs_.c_str() + rhs_.size(),
             _rule_lexer);
@@ -492,7 +519,7 @@ private:
 
         if (nt_iter_ == _non_terminals.end())
         {
-            nt_iter_ = _non_terminals.insert(nt_pair(lhs_,
+            nt_iter_ = _non_terminals.insert(non_terminal_pair(lhs_,
                 non_terminal())).first;
             nt_iter_->second._first_production = production_._index;
             nt_iter_->second._last_production = production_._index;
@@ -513,7 +540,7 @@ private:
             nt_iter_->second._last_production = production_._index;
         }
 
-        production_._lhs = nt_iter_->first;
+        production_._symbols._lhs = nt_iter_->first;
 
         for (; iter_ != end_; ++iter_)
         {
@@ -535,7 +562,7 @@ private:
 
                     production_._precedence =
                         terminal_iter_->second._precedence;
-                    production_._rhs.push_back
+                    production_._symbols._rhs.push_back
                         (symbol(symbol::TERMINAL, token_));
                     break;
                 }
@@ -552,18 +579,19 @@ private:
 
                         if (nt_iter_ == _non_terminals.end())
                         {
-                            nt_iter_ = _non_terminals.insert(nt_pair(token_,
-                                non_terminal())).first;
+                            nt_iter_ = _non_terminals.insert
+                                (non_terminal_pair(token_, non_terminal())).
+                                first;
                         }
 
-                        production_._rhs.push_back
+                        production_._symbols._rhs.push_back
                             (symbol(symbol::NON_TERMINAL, token_));
                     }
                     else
                     {
                         production_._precedence =
                             terminal_iter_->second._precedence;
-                        production_._rhs.push_back
+                        production_._symbols._rhs.push_back
                             (symbol(symbol::TERMINAL, token_));
                     }
 
@@ -591,16 +619,16 @@ private:
                 }
                 case OR:
                 {
-                    string old_lhs_ = production_._lhs;
+                    string old_lhs_ = production_._symbols._lhs;
                     std::size_t index_ = _grammar.size() + 1;
-                    typename nt_map::iterator iter_ =
+                    typename non_terminal_map::iterator iter_ =
                         _non_terminals.find(old_lhs_);
 
                     production_._next_lhs =
                         iter_->second._last_production = index_;
                     _grammar.push_back(production_);
                     production_.clear();
-                    production_._lhs = old_lhs_;
+                    production_._symbols._lhs = old_lhs_;
                     production_._index = index_;
                     break;
                 }
