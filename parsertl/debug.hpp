@@ -436,7 +436,6 @@ public:
                         if (rule_ != entry_._param)
                         {
                             default_ = false;
-                            break;
                         }
                     }
 
