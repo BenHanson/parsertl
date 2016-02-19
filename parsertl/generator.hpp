@@ -349,26 +349,35 @@ private:
 
             index_ = trie_.first;
 
-            for (rhs_iter iter_ = production_._symbols._rhs.begin(),
-                end_ = production_._symbols._rhs.end(); iter_ != end_; ++iter_)
+            if (production_._symbols._rhs.empty())
             {
-                std::size_t id_ = ~0;
-
-                prod_->_rhs_indexes.push_back(size_t_pair());
-                prod_->_rhs_indexes.back().first = index_;
-
-                switch (iter_->_type)
+                prod_->_rhs_indexes.push_back(size_t_pair
+                    (prod_->_lhs_indexes.first, prod_->_lhs_indexes.first));
+            }
+            else
+            {
+                for (rhs_iter iter_ = production_._symbols._rhs.begin(),
+                    end_ = production_._symbols._rhs.end();
+                    iter_ != end_; ++iter_)
                 {
+                    std::size_t id_ = ~0;
+
+                    prod_->_rhs_indexes.push_back(size_t_pair());
+                    prod_->_rhs_indexes.back().first = index_;
+
+                    switch (iter_->_type)
+                    {
                     case rules::symbol::TERMINAL:
                         id_ = terminals_.find(iter_->_name)->second._id;
                         break;
                     case rules::symbol::NON_TERMINAL:
                         id_ = nt_enums_.find(iter_->_name)->second;
                         break;
-                }
+                    }
 
-                index_ = dfa_[index_]._transitions.find(id_)->second;
-                prod_->_rhs_indexes.back().second = index_;
+                    index_ = dfa_[index_]._transitions.find(id_)->second;
+                    prod_->_rhs_indexes.back().second = index_;
+                }
             }
         }
 
@@ -692,21 +701,23 @@ private:
                                     for (; rstate_iter_->second._nullable &&
                                         next_iter_ != rhs_end_; ++next_iter_)
                                     {
-                                        if (next_iter_->_type == symbol::TERMINAL)
+                                        if (next_iter_->_type ==
+                                            symbol::TERMINAL)
                                         {
                                             // Just add terminal.
-                                            lstate_iter_->second._follow_set.insert
-                                                (terminals_.find
-                                                    (next_iter_->_name)->second._id);
+                                            lstate_iter_->second.
+                                                _follow_set.insert(terminals_.
+                                                    find(next_iter_->_name)->
+                                                        second._id);
                                             break;
                                         }
                                         else
                                         {
                                             rstate_iter_ = nt_states_.find
-                                                (nt_enums_.find
-                                                    (next_iter_->_name)->second);
-                                            lstate_iter_->second._follow_set.insert
-                                                (rstate_iter_->
+                                                (nt_enums_.find(next_iter_->
+                                                    _name)->second);
+                                            lstate_iter_->second._follow_set.
+                                                insert(rstate_iter_->
                                                     second._first_set.begin(),
                                                     rstate_iter_->
                                                     second._first_set.end());
@@ -785,7 +796,6 @@ private:
                         p_iter_ != p_end_; ++p_iter_)
                     {
                         if (production_._symbols == p_iter_->_symbols &&
-                            p_iter_->_rhs_indexes.size() &&
                             index_ == p_iter_->_rhs_indexes.back().second)
                         {
                             ostringstream lhs_;
