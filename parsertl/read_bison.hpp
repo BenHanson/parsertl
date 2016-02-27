@@ -116,15 +116,12 @@ void read_bison(const char *start_, const char *end_, rules &rules_)
 
     parser_.init(iter_);
 
-    while (parser_.entry._action != parsertl::error &&
-        parser_.entry._action != parsertl::accept)
+    while (parser_.entry._action != error &&
+        parser_.entry._action != accept)
     {
         switch (parser_.entry._action)
         {
-            case parsertl::error:
-                throw std::runtime_error("Syntax error");
-                break;
-            case parsertl::reduce:
+            case reduce:
                 if (parser_.entry._param == token_index_)
                 {
                     const parser::token &token_ =
@@ -187,6 +184,9 @@ void read_bison(const char *start_, const char *end_, rules &rules_)
 
         parser_.next(iter_, productions_);
     }
+
+    if (parser_.entry._action == error)
+        throw std::runtime_error("Syntax error");
 }
 }
 

@@ -110,7 +110,7 @@ public:
 
     struct token_info
     {
-        enum associativity {precedence, nonassoc, left, right};
+        enum associativity { nonassoc, precedence, left, right };
         std::size_t _id;
         std::size_t _precedence;
         associativity _associativity;

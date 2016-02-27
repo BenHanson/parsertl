@@ -317,6 +317,7 @@ public:
             typename size_t_pair_set::const_iterator
                 cend_ = configs_[row_].end();
             bool shift_ = false;
+            bool error_ = false;
             bool reduce_ = false;
             bool goto_ = false;
 
@@ -375,7 +376,7 @@ public:
                 const state_machine::entry &entry_ =
                     (&*iter_)[column_];
 
-                if (entry_._action == parsertl::shift)
+                if (entry_._action == shift)
                 {
                     max_ = std::max(max_, symbols_.find(column_)->
                         second.size());
@@ -384,29 +385,72 @@ public:
 
             shift_ = max_ > 0;
 
+            if (shift_)
+            {
+                for (std::size_t column_ = 0; column_ < terminals_; ++column_)
+                {
+                    const state_machine::entry &entry_ =
+                        (&*iter_)[column_];
+
+                    if (entry_._action == shift)
+                    {
+                        const string &name_ = symbols_.find(column_)->second;
+
+                        stream_ << ' ';
+                        stream_ << ' ';
+                        stream_ << ' ';
+                        stream_ << ' ';
+                        stream_ << name_;
+                        stream_ << string(max_ + 2 - name_.size(), ' ');
+                        oshift(stream_);
+                        stream_ << entry_._param;
+                        stream_ << '\n';
+                    }
+                }
+
+                stream_ << '\n';
+            }
+
+            max_ = 0;
+
             for (std::size_t column_ = 0; column_ < terminals_; ++column_)
             {
                 const state_machine::entry &entry_ =
                     (&*iter_)[column_];
 
-                if (entry_._action == parsertl::shift)
+                if (entry_._action == error &&
+                    entry_._param == non_associative)
                 {
-                    const string &name_ = symbols_.find(column_)->second;
-
-                    stream_ << ' ';
-                    stream_ << ' ';
-                    stream_ << ' ';
-                    stream_ << ' ';
-                    stream_ << name_;
-                    stream_ << string(max_ + 2 - name_.size(), ' ');
-                    shift(stream_);
-                    stream_ << entry_._param;
-                    stream_ << '\n';
+                    max_ = std::max(max_, symbols_.find(column_)->
+                        second.size());
                 }
             }
 
-            if (shift_)
+            error_ = max_ > 0;
+
+            if (error_)
             {
+                for (std::size_t column_ = 0; column_ < terminals_; ++column_)
+                {
+                    const state_machine::entry &entry_ =
+                        (&*iter_)[column_];
+
+                    if (entry_._action == error &&
+                        entry_._param == non_associative)
+                    {
+                        const string &name_ = symbols_.find(column_)->second;
+
+                        stream_ << ' ';
+                        stream_ << ' ';
+                        stream_ << ' ';
+                        stream_ << ' ';
+                        stream_ << name_;
+                        stream_ << string(max_ + 2 - name_.size(), ' ');
+                        oerror(stream_);
+                        stream_ << '\n';
+                    }
+                }
+
                 stream_ << '\n';
             }
 
@@ -420,8 +464,7 @@ public:
             {
                 const state_machine::entry &entry_ = (&*iter_)[column_];
 
-                if (entry_._action == parsertl::reduce ||
-                    entry_._action == parsertl::accept)
+                if (entry_._action == reduce || entry_._action == accept)
                 {
                     typename symbol_map::const_iterator siter_ =
                         symbols_.find(column_);
@@ -453,8 +496,7 @@ public:
                     const state_machine::entry &entry_ =
                         (&*iter_)[column_];
 
-                    if (entry_._action == parsertl::reduce ||
-                        entry_._action == parsertl::accept)
+                    if (entry_._action == reduce || entry_._action == accept)
                     {
                         const string &name_ =
                             symbols_.find(column_)->second;
@@ -476,9 +518,9 @@ public:
                             stream_ << string(max_ + 2 - name_.size(), ' ');
                         }
 
-                        if (entry_._action == parsertl::reduce)
+                        if (entry_._action == reduce)
                         {
-                            reduce(stream_);
+                            oreduce(stream_);
                             stream_ << entry_._param;
                             stream_ << ' ';
                             stream_ << '(';
@@ -488,7 +530,7 @@ public:
                         }
                         else
                         {
-                            accept(stream_);
+                            oaccept(stream_);
                         }
 
                         stream_ << '\n';
@@ -510,7 +552,7 @@ public:
             {
                 const state_machine::entry &entry_ = (&*iter_)[column_];
 
-                if (entry_._action == parsertl::go_to)
+                if (entry_._action == go_to)
                 {
                     max_ = std::max(max_, symbols_.find(column_)->
                         second.size());
@@ -519,37 +561,29 @@ public:
 
             goto_ = max_ > 0;
 
-            for (std::size_t column_ = terminals_; column_ < symbols_.size();
-                ++column_)
-            {
-                const state_machine::entry &entry_ = (&*iter_)[column_];
-
-                if (entry_._action == parsertl::go_to)
-                {
-                    const string &name_ = symbols_.find(column_)->second;
-
-                    stream_ << ' ';
-                    stream_ << ' ';
-                    stream_ << ' ';
-                    stream_ << ' ';
-                    stream_ << name_;
-                    stream_ << string(max_ + 2 - name_.size(), ' ');
-                    ogoto(stream_);
-                    stream_ << entry_._param;
-                    stream_ << '\n';
-                }
-            }
-
-/*
-case parsertl::error:
-if (entry_._param == non_associative)
-{
-error(stream_);
-}
-*/
-
             if (goto_)
             {
+                for (std::size_t column_ = terminals_;
+                    column_ < symbols_.size(); ++column_)
+                {
+                    const state_machine::entry &entry_ = (&*iter_)[column_];
+
+                    if (entry_._action == go_to)
+                    {
+                        const string &name_ = symbols_.find(column_)->second;
+
+                        stream_ << ' ';
+                        stream_ << ' ';
+                        stream_ << ' ';
+                        stream_ << ' ';
+                        stream_ << name_;
+                        stream_ << string(max_ + 2 - name_.size(), ' ');
+                        ogoto(stream_);
+                        stream_ << entry_._param;
+                        stream_ << '\n';
+                    }
+                }
+
                 stream_ << '\n';
             }
 
@@ -696,32 +730,32 @@ private:
         stream_ << L"state " << row_ << L'\n' << L'\n';
     }
 
-    static void error(std::ostream &stream_)
+    static void oerror(std::ostream &stream_)
     {
         stream_ << "error (nonassociative)";
     }
 
-    static void error(std::wostream &stream_)
+    static void oerror(std::wostream &stream_)
     {
         stream_ << L"error (nonassociative)";
     }
 
-    static void shift(std::ostream &stream_)
+    static void oshift(std::ostream &stream_)
     {
         stream_ << "shift, and go to state ";
     }
 
-    static void shift(std::wostream &stream_)
+    static void oshift(std::wostream &stream_)
     {
         stream_ << L"shift, and go to state ";
     }
 
-    static void reduce(std::ostream &stream_)
+    static void oreduce(std::ostream &stream_)
     {
         stream_ << "reduce using rule ";
     }
 
-    static void reduce(std::wostream &stream_)
+    static void oreduce(std::wostream &stream_)
     {
         stream_ << L"reduce using rule ";
     }
@@ -736,12 +770,12 @@ private:
         stream_ << L"go to state ";
     }
 
-    static void accept(std::ostream &stream_)
+    static void oaccept(std::ostream &stream_)
     {
         stream_ << "accept";
     }
 
-    static void accept(std::wostream &stream_)
+    static void oaccept(std::wostream &stream_)
     {
         stream_ << L"accept";
     }

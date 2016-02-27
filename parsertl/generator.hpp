@@ -653,6 +653,8 @@ private:
             for (; iter_ != end_; ++iter_)
             {
                 const production &production_ = *iter_;
+                const std::size_t lhs_id_ =
+                    nt_enums_.find(production_._symbols._lhs)->second;
                 typename symbol_deque::const_iterator rhs_iter_ =
                     production_._symbols._rhs.begin();
                 typename symbol_deque::const_iterator rhs_end_ =
@@ -664,9 +666,10 @@ private:
                     {
                         typename symbol_deque::const_iterator next_iter_ =
                             rhs_iter_ + 1;
+                        const std::size_t rhs_id_ = nt_enums_.find
+                            (rhs_iter_->_name)->second;
                         typename size_t_nt_state_map::iterator
-                            lstate_iter_ = nt_states_.find
-                            (nt_enums_.find(rhs_iter_->_name)->second);
+                            lstate_iter_ = nt_states_.find(rhs_id_);
                         const std::size_t size_ =
                             lstate_iter_->second._follow_set.size();
                         bool nullable_ = next_iter_ == rhs_end_;
@@ -722,6 +725,11 @@ private:
                                                     rstate_iter_->
                                                     second._first_set.end());
                                         }
+
+                                        if (!rstate_iter_->second._nullable)
+                                        {
+                                            break;
+                                        }
                                     }
 
                                     nullable_ = next_iter_ == rhs_end_;
@@ -734,9 +742,7 @@ private:
                             // If there is a production A -> aB
                             // then everything in FOLLOW(A) is in FOLLOW(B).
                             typename size_t_nt_state_map::const_iterator
-                                rstate_iter_ = nt_states_.find
-                                    (nt_enums_.find(production_.
-                                        _symbols._lhs)->second);
+                                rstate_iter_ = nt_states_.find(lhs_id_);
 
                             lstate_iter_->second._follow_set.insert
                                 (rstate_iter_->second._follow_set.begin(),
@@ -1015,7 +1021,8 @@ private:
             ss_ << '/' << actions_[rhs_._action];
             dump_action(grammar_, config_, symbols_, id_, rhs_, ss_);
             ss_ << " conflict.";
-            throw runtime_error(ss_.str());
+            *warnings_ += ss_.str();
+            //throw runtime_error(ss_.str());
         }
     }
 
