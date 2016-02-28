@@ -701,34 +701,37 @@ private:
                                 // If nullable, keep going
                                 if (rstate_iter_->second._nullable)
                                 {
-                                    for (; rstate_iter_->second._nullable &&
-                                        next_iter_ != rhs_end_; ++next_iter_)
+                                    for (; next_iter_ != rhs_end_; ++next_iter_)
                                     {
+                                        std::size_t next_id_ = ~0;
+
                                         if (next_iter_->_type ==
                                             symbol::TERMINAL)
                                         {
+                                            next_id_ = terminals_.find
+                                                (next_iter_->_name)->
+                                                    second._id;
                                             // Just add terminal.
-                                            lstate_iter_->second.
-                                                _follow_set.insert(terminals_.
-                                                    find(next_iter_->_name)->
-                                                        second._id);
+                                            lstate_iter_->second._follow_set.
+                                                insert(next_id_);
                                             break;
                                         }
                                         else
                                         {
-                                            rstate_iter_ = nt_states_.find
-                                                (nt_enums_.find(next_iter_->
-                                                    _name)->second);
+                                            next_id_ = nt_enums_.find
+                                                (next_iter_->_name)->second;
+                                            rstate_iter_ =
+                                                nt_states_.find(next_id_);
                                             lstate_iter_->second._follow_set.
                                                 insert(rstate_iter_->
                                                     second._first_set.begin(),
                                                     rstate_iter_->
                                                     second._first_set.end());
-                                        }
 
-                                        if (!rstate_iter_->second._nullable)
-                                        {
-                                            break;
+                                            if (!rstate_iter_->second._nullable)
+                                            {
+                                                break;
+                                            }
                                         }
                                     }
 
