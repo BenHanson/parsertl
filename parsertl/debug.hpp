@@ -1,5 +1,5 @@
 // debug.hpp
-// Copyright (c) 2014 Ben Hanson (http://www.benhanson.net/)
+// Copyright (c) 2014-2016 Ben Hanson (http://www.benhanson.net/)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file licence_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -31,7 +31,7 @@ public:
 
     static void dump(const rules &rules_, ostream &stream_)
     {
-        string start_ = rules_.start();
+        const string start_ = rules_.start();
         const production_deque &grammar_ = rules_.grammar();
         const terminal_map &terminals_ = rules_.terminals();
         std::set<string> seen_;

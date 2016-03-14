@@ -1,5 +1,5 @@
 // generator.hpp
-// Copyright (c) 2014 Ben Hanson (http://www.benhanson.net/)
+// Copyright (c) 2014-2016 Ben Hanson (http://www.benhanson.net/)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file licence_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -56,25 +56,173 @@ public:
             warnings_);
         copy_rules(rules_, nt_enums_, sm_);
     }
-
+/*
     static void build_dfa(const rules &rules_, const nt_enum_map &nt_enums_,
         size_t_pair_set_deque *core_cfgs_, size_t_pair_set_deque &configs_,
         dfa &dfa_)
     {
-        const non_terminal_map &non_terminals_ = rules_.non_terminals();
-        // lookup start
-        typename non_terminal_map::const_iterator iter_ =
-            non_terminals_.find(rules_.start());
-        const grammar &grammar_ = rules_.grammar();
-        const production &start_ = grammar_[iter_->second._first_production];
+        std::size_t index_ = 0;
+        int_grammar grammar_;
+        int_non_terminal_map non_terminals_;
         const terminal_map &terminals_ = rules_.terminals();
         typedef std::pair<std::size_t, size_t_pair_set> sym_set_pair;
         typedef std::map<std::size_t, size_t_pair_set> sym_set_map;
         // Not owner
         std::queue<size_t_pair_set *> queue_;
 
-        configs_.clear();
-        dfa_.clear();
+        grammar_.resize(rules_.grammar().size());
+
+        for (typename grammar::const_iterator iter_ =
+            rules_.grammar().begin(), end_ = rules_.grammar().end();
+            iter_ != end_; ++iter_, ++index_)
+        {
+            std::size_t rhs_idx_ = 0;
+
+            grammar_[index_]._lhs =
+                nt_enums_.find(iter_->_symbols._lhs)->second;
+            grammar_[index_]._rhs.resize(iter_->_symbols._rhs.size());
+
+            for (typename symbol_deque::const_iterator i_ =
+                iter_->_symbols._rhs.begin(), e_ = iter_->_symbols._rhs.end();
+                i_ != e_; ++i_, ++rhs_idx_)
+            {
+                switch (i_->_type)
+                {
+                case symbol::TERMINAL:
+                    grammar_[index_]._rhs[rhs_idx_] =
+                        terminals_.find(i_->_name)->second._id;
+                    break;
+                case symbol::NON_TERMINAL:
+                    grammar_[index_]._rhs[rhs_idx_] =
+                        nt_enums_.find(i_->_name)->second;
+                    break;
+                }
+            }
+
+            grammar_[index_]._next_lhs = iter_->_next_lhs;
+        }
+
+        for (typename non_terminal_map::const_iterator iter_ =
+            rules_.non_terminals().begin(),
+            end_ = rules_.non_terminals().end(); iter_ != end_; ++iter_)
+        {
+            non_terminals_[nt_enums_.find(iter_->first)->second] =
+                iter_->second;
+        }
+
+        configs_.push_back(size_t_pair_set());
+        closure(grammar_, terminals_.size() - 1, non_terminals_,
+            size_t_pair(rules_.grammar()
+                [rules_.non_terminals().find(rules_.start())->
+                second._first_production]._index, 0), configs_.back());
+        queue_.push(&configs_.back());
+
+        do
+        {
+            size_t_pair_set *set_ = queue_.front();
+            sym_set_map map_;
+
+            queue_.pop();
+            dfa_.push_back(dfa_state());
+
+            dfa_state &state_ = dfa_.back();
+
+            for (typename size_t_pair_set::const_iterator iter_ =
+                set_->begin(), end_ = set_->end(); iter_ != end_; ++iter_)
+            {
+                if (iter_->second < grammar_[iter_->first]._rhs.size())
+                {
+                    size_t_pair_set set_;
+                    const std::size_t id_ =
+                        grammar_[iter_->first]._rhs[iter_->second];
+
+                    closure(grammar_, terminals_.size() - 1, non_terminals_,
+                        size_t_pair(iter_->first, iter_->second + 1), set_);
+
+                    typename sym_set_map::iterator iter_ = map_.find(id_);
+
+                    if (iter_ == map_.end())
+                    {
+                        iter_ = map_.insert(sym_set_pair
+                            (id_, size_t_pair_set())).first;
+                        iter_->second.swap(set_);
+                    }
+                    else
+                    {
+                        iter_->second.insert(set_.begin(), set_.end());
+                    }
+                }
+            }
+
+            for (typename sym_set_map::iterator iter_ = map_.begin(),
+                end_ = map_.end(); iter_ != end_; ++iter_)
+            {
+                std::size_t index_ = npos();
+                typename size_t_pair_set_deque::const_iterator config_iter_ =
+                    std::find(configs_.begin(), configs_.end(), iter_->second);
+
+                if (config_iter_ == configs_.end())
+                {
+                    index_ = configs_.size();
+
+                    if (core_cfgs_)
+                    {
+                        core_cfgs_->push_back(size_t_pair_set());
+                    }
+
+                    configs_.push_back(size_t_pair_set());
+                    configs_.back().insert
+                        (iter_->second.begin(), iter_->second.end());
+                    queue_.push(&configs_.back());
+                }
+                else
+                {
+                    index_ = config_iter_ - configs_.begin();
+                }
+
+                typename dfa_state::transition_map::iterator tran_iter_ =
+                    state_._transitions.find(iter_->first);
+
+                if (tran_iter_ == state_._transitions.end() ||
+                    tran_iter_->second != index_)
+                {
+                    state_._transitions.insert(typename dfa_state::
+                        transition_pair(iter_->first, index_));
+                }
+            }
+        } while (!queue_.empty());
+    }
+*/
+    static void build_dfa(const rules &rules_, const nt_enum_map &nt_enums_,
+        size_t_pair_set_deque *core_cfgs_, size_t_pair_set_deque &configs_,
+        dfa &dfa_)
+    {
+        const non_terminal_map &non_terminals_ = rules_.non_terminals();
+        std::map<string, size_t_pair_set> nt_cfg_map_;
+        const grammar &grammar_ = rules_.grammar();
+
+        for (typename non_terminal_map::const_iterator iter_ =
+            non_terminals_.begin(), end_ = non_terminals_.end();
+            iter_ != end_; ++iter_)
+        {
+            size_t_pair_set &set_ = nt_cfg_map_[iter_->first];
+
+            for (std::size_t index_ = iter_->second._first_production;
+                index_ != npos(); index_ = grammar_[index_]._next_lhs)
+            {
+                closure(rules_, size_t_pair(index_, 0), set_);
+            }
+        }
+
+        // lookup start
+        typename non_terminal_map::const_iterator iter_ =
+            non_terminals_.find(rules_.start());
+        const production &start_ = grammar_[iter_->second._first_production];
+        const terminal_map &terminals_ = rules_.terminals();
+        typedef std::pair<std::size_t, size_t_pair_set> sym_set_pair;
+        typedef std::map<std::size_t, size_t_pair_set> sym_set_map;
+        // Not owner
+        std::queue<size_t_pair_set *> queue_;
 
         if (core_cfgs_)
         {
@@ -109,8 +257,26 @@ public:
                         terminals_.find(symbol_._name)->second._id :
                         nt_enums_.find(symbol_._name)->second;
 
-                    closure(rules_,
-                        size_t_pair(iter_->first, iter_->second + 1), set_);
+//                    closure(rules_,
+//                        size_t_pair(iter_->first, iter_->second + 1), set_);
+
+                    set_.insert(size_t_pair(iter_->first, iter_->second + 1));
+
+                    if (iter_->second + 1 < grammar_[iter_->first].
+                        _symbols._rhs.size())
+                    {
+                        const symbol &next_symbol_ = grammar_[iter_->first].
+                            _symbols._rhs[iter_->second + 1];
+
+                        if (next_symbol_._type == symbol::NON_TERMINAL)
+                        {
+                            size_t_pair_set &source_ =
+                                nt_cfg_map_[next_symbol_._name];
+
+                            set_.insert(source_.begin(), source_.end());
+                        }
+                    }
+
 
                     typename sym_set_map::iterator iter_ = map_.find(id_);
 
@@ -210,7 +376,17 @@ public:
     }
 
 private:
+    struct int_prod
+    {
+        std::size_t _lhs;
+        std::vector<std::size_t> _rhs;
+        std::size_t _next_lhs;
+    };
+
     typedef typename rules::char_type char_type;
+    typedef std::vector<int_prod> int_grammar;
+    typedef std::map<std::size_t, typename rules::non_terminal>
+        int_non_terminal_map;
     typedef typename rules::lr_symbols lr_symbols;
     typedef typename rules::production_deque grammar;
     typedef std::pair<string, std::size_t> nt_enum_pair;
@@ -251,7 +427,50 @@ private:
             }
         }
     }
+/*
+    static void closure(const int_grammar &grammar_,
+        const std::size_t last_terminal_,
+        const int_non_terminal_map &non_terminals_, size_t_pair &config_,
+        size_t_pair_set &set_)
+    {
+        std::queue<size_t_pair> queue_;
 
+        queue_.push(config_);
+
+        do
+        {
+            size_t_pair curr_ = queue_.front();
+
+            queue_.pop();
+            set_.insert(curr_);
+
+            if (curr_.second < grammar_[curr_.first]._rhs.size())
+            {
+                const std::size_t symbol_ =
+                    grammar_[curr_.first]._rhs[curr_.second];
+
+                if (symbol_ > last_terminal_)
+                {
+                    typename int_non_terminal_map::const_iterator iter_ =
+                        non_terminals_.find(symbol_);
+
+                    curr_.second = 0;
+
+                    for (std::size_t index_ = iter_->second._first_production;
+                        index_ != npos(); index_ = grammar_[index_]._next_lhs)
+                    {
+                        curr_.first = index_;
+
+                        if (set_.insert(curr_).second)
+                        {
+                            queue_.push(curr_);
+                        }
+                    }
+                }
+            }
+        } while (!queue_.empty());
+    }
+*/
     static void closure(const rules &rules_, const size_t_pair &config_,
         size_t_pair_set &set_)
     {
