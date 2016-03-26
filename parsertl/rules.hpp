@@ -133,7 +133,8 @@ public:
     {
         lexer_rules rules_;
 
-        rules_.push("'(\\\\([^0-9cx]|[0-9]{1,3}|c[@a-zA-Z]|x\\d+)|[^'])'",
+        rules_.push("'(\\\\([^0-9cx]|[0-9]{1,3}|c[@a-zA-Z]|x\\d+)|[^'])+'|"
+            "[\"](\\\\([^0-9cx]|[0-9]{1,3}|c[@a-zA-Z]|x\\d+)|[^\"])+[\"]",
             LITERAL);
         rules_.push("[A-Za-z_.][-A-Za-z_.0-9]*", SYMBOL);
         rules_.push("\\s+", rules_.skip());
