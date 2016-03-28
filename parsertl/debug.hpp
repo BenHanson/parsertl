@@ -63,6 +63,9 @@ public:
         {
             switch (iter_->first.second)
             {
+                case rules::token_info::token:
+                    token(stream_);
+                    break;
                 case rules::token_info::precedence:
                     precedence(stream_);
                     break;
@@ -599,6 +602,16 @@ private:
         token_info;
     typedef std::map<token_info, string> token_map;
     typedef std::pair<token_info, string> token_pair;
+
+    static void token(std::ostream &stream_)
+    {
+        stream_ << "%token ";
+    }
+
+    static void token(std::wostream &stream_)
+    {
+        stream_ << L"%token ";
+    }
 
     static void precedence(std::ostream &stream_)
     {

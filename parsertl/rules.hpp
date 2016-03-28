@@ -110,7 +110,7 @@ public:
 
     struct token_info
     {
-        enum associativity { nonassoc, precedence, left, right };
+        enum associativity { token, precedence, nonassoc, left, right };
         std::size_t _id;
         std::size_t _precedence;
         associativity _associativity;
@@ -161,14 +161,14 @@ public:
         rules_.push("EMPTY,PREC", "\\s+", rules_.skip(), ".");
         lexer_generator::build(rules_, _rule_lexer);
         _terminals.insert(string_tinfo_pair(string(1, '$'),
-            token_info(0, 0, token_info::nonassoc)));
+            token_info(0, 0, token_info::token)));
     }
 
     void clear()
     {
         _terminals.clear();
         _terminals.insert(string_tinfo_pair(string(1, '$'),
-            token_info(0, 0, token_info::nonassoc)));
+            token_info(0, 0, token_info::token)));
         _non_terminals.clear();
         _grammar.clear();
         _start.clear();
@@ -177,7 +177,7 @@ public:
 
     void token(const char_type *names_)
     {
-        token(names_, 0, token_info::nonassoc, "token");
+        token(names_, 0, token_info::token, "token");
     }
 
     void left(const char_type *names_)
@@ -558,7 +558,7 @@ private:
                         terminal_iter_ = _terminals.insert
                             (string_tinfo_pair (token_, token_info
                             (_terminals.size(), 0,
-                            token_info::nonassoc))).first;
+                            token_info::token))).first;
                     }
 
                     production_._precedence =
