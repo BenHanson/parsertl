@@ -1005,9 +1005,36 @@ private:
         sm_._rows = dfa_.size();
         sm_._table.resize(sm_._columns * sm_._rows);
 
-        // reductions
         for (std::size_t index_ = 0; index_ < size_; ++index_)
         {
+            // shift and gotos
+            for (typename dfa_state::transition_map::const_iterator iter_ =
+                dfa_[index_]._transitions.begin(),
+                end_ = dfa_[index_]._transitions.end();
+                iter_ != end_; ++iter_)
+            {
+                const std::size_t id_ = iter_->first;
+                typename state_machine::entry lhs_;
+                typename state_machine::entry &rhs_ =
+                    sm_._table[index_ * row_size_ + id_];
+
+                if (id_ < terminals_.size())
+                {
+                    // TERMINAL
+                    lhs_._action = shift;
+                }
+                else
+                {
+                    // NON_TERMINAL
+                    lhs_._action = go_to;
+                }
+
+                lhs_._param = iter_->second;
+                fill_entry(rules_, configs_[index_], symbols_, id_,
+                    lhs_, rhs_, warnings_);
+            }
+
+            // reductions
             for (typename size_t_pair_set::const_iterator iter_ =
                 configs_[index_].begin(), end_ = configs_[index_].end();
                 iter_ != end_; ++iter_)
@@ -1069,33 +1096,6 @@ private:
                     }
                 }
             }
-
-            // shift and gotos
-            for (typename dfa_state::transition_map::const_iterator iter_ =
-                dfa_[index_]._transitions.begin(),
-                end_ = dfa_[index_]._transitions.end();
-                iter_ != end_; ++iter_)
-            {
-                const std::size_t id_ = iter_->first;
-                typename state_machine::entry lhs_;
-                typename state_machine::entry &rhs_ =
-                    sm_._table[index_ * row_size_ + id_];
-
-                if (id_ < terminals_.size())
-                {
-                    // TERMINAL
-                    lhs_._action = shift;
-                }
-                else
-                {
-                    // NON_TERMINAL
-                    lhs_._action = go_to;
-                }
-
-                lhs_._param = iter_->second;
-                fill_entry(rules_, configs_[index_], symbols_, id_,
-                    lhs_, rhs_, warnings_);
-            }
         }
     }
 
@@ -1125,44 +1125,19 @@ private:
         }
         else
         {
-            std::size_t lhs_prec_ = 0;
-            typename token_info::associativity lhs_assoc_ =
-                token_info::precedence;
-            std::size_t rhs_prec_ = 0;
-            typename token_info::associativity rhs_assoc_ =
-                token_info::precedence;
+            const std::size_t lhs_prec_ = grammar_[lhs_._param]._precedence;
 
-            if (lhs_._action == shift)
+            if (lhs_._action == reduce && rhs_._action == shift)
             {
                 typename terminal_map::const_iterator iter_ =
                     terminals_.find(symbols_.find(id_)->second);
+                const std::size_t rhs_prec_ = iter_->second._precedence;
+                const typename token_info::associativity rhs_assoc_ =
+                    iter_->second._associativity;
 
-                lhs_prec_ = iter_->second._precedence;
-                lhs_assoc_ = iter_->second._associativity;
-            }
-            else if (lhs_._action == reduce)
-            {
-                lhs_prec_ = grammar_[lhs_._param]._precedence;
-            }
-
-            if (rhs_._action == shift)
-            {
-                typename terminal_map::const_iterator iter_ =
-                    terminals_.find(symbols_.find(id_)->second);
-
-                rhs_prec_ = iter_->second._precedence;
-                rhs_assoc_ = iter_->second._associativity;
-            }
-            else if (rhs_._action == reduce)
-            {
-                rhs_prec_ = grammar_[rhs_._param]._precedence;
-            }
-
-            if (lhs_._action == shift && rhs_._action == reduce)
-            {
                 if (lhs_prec_ == 0 || rhs_prec_ == 0)
                 {
-                    // Favour shift
+                    // Favour shift (leave rhs as it is).
                     if (warnings_)
                     {
                         std::ostringstream ss_;
@@ -1176,16 +1151,13 @@ private:
                         ss_ << " conflict.\n";
                         *warnings_ += ss_.str();
                     }
-
-                    // Assign new value after warning!
-                    rhs_ = lhs_;
                 }
                 else if (lhs_prec_ == rhs_prec_)
                 {
-                    switch (lhs_assoc_)
+                    switch (rhs_assoc_)
                     {
                         case token_info::precedence:
-                            // Favour shift
+                            // Favour shift (leave rhs as it is).
                             if (warnings_)
                             {
                                 std::ostringstream ss_;
@@ -1200,8 +1172,6 @@ private:
                                 *warnings_ += ss_.str();
                             }
 
-                            // Assign new value after warning!
-                            rhs_ = lhs_;
                             break;
                         case token_info::nonassoc:
                             rhs_._action = error;
@@ -1219,6 +1189,9 @@ private:
             }
             else if (lhs_._action == reduce && rhs_._action == reduce)
             {
+                const std::size_t rhs_prec_ =
+                    grammar_[rhs_._param]._precedence;
+
                 if (lhs_prec_ == 0 || rhs_prec_ == 0 || lhs_prec_ == rhs_prec_)
                 {
                     error_ = true;
