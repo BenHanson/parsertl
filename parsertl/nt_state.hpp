@@ -7,19 +7,21 @@
 #define PARSERTL_NT_STATE_HPP
 
 #include <map>
-#include <set>
+#include <vector>
 
 namespace parsertl
 {
 struct nt_state
 {
-    typedef std::set<std::size_t> size_t_set;
+    typedef std::vector<char> size_t_set;
     bool _nullable;
     size_t_set _first_set;
     size_t_set _follow_set;
 
-    nt_state() :
-        _nullable(false)
+    nt_state(const std::size_t terminals_) :
+        _nullable(false),
+        _first_set(terminals_, 0),
+        _follow_set(terminals_, 0)
     {
     }
 };

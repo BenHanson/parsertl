@@ -85,7 +85,6 @@ public:
     {
         lr_symbols _symbols;
         std::size_t _precedence;
-        string _prec_name;
         std::size_t _index;
         std::size_t _next_lhs;
 
@@ -100,7 +99,6 @@ public:
         {
             _symbols.clear();
             _precedence = 0;
-            _prec_name.clear();
             _index = ~0;
             _next_lhs = ~0;
         }
@@ -615,7 +613,6 @@ private:
                     }
 
                     production_._precedence = term_iter_->second._precedence;
-                    production_._prec_name = token_;
                     break;
                 }
                 case OR:

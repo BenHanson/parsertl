@@ -39,16 +39,17 @@ public:
         sm_.clear();
         rules_.validate();
         enumerate_non_terminals(rules_, nt_enums_);
-        fill_nt_states(nt_enums_, nt_states_);
-        build_dfa(rules_, nt_enums_, core_cfgs_, configs_, dfa_);
+        fill_nt_states(nt_enums_, nt_states_, rules_.terminals().size());
         build_first_sets(rules_, nt_enums_, nt_states_);
+        build_dfa(rules_, nt_enums_, core_cfgs_, configs_, dfa_);
 
         rewrite(rules_, nt_enums_, configs_, dfa_, new_grammar_, new_rules_);
         enumerate_non_terminals(new_rules_, new_nt_enums_);
-        fill_nt_states(new_nt_enums_, new_nt_states_);
+        fill_nt_states(new_nt_enums_, new_nt_states_,
+            new_rules_.terminals().size());
         // First add EOF to follow_set of start.
         new_nt_states_.find(new_nt_enums_.find
-           (new_rules_.start())->second)->second._follow_set.insert(0);
+           (new_rules_.start())->second)->second._follow_set[0] = 1;
         build_first_sets(new_rules_, new_nt_enums_, new_nt_states_);
         build_follow_sets(new_rules_, new_nt_enums_, new_nt_states_);
         build_table(rules_, nt_enums_, nt_states_, configs_, dfa_,
@@ -277,7 +278,6 @@ public:
                         }
                     }
 
-
                     typename sym_set_map::iterator iter_ = map_.find(id_);
 
                     if (iter_ == map_.end())
@@ -427,50 +427,7 @@ private:
             }
         }
     }
-/*
-    static void closure(const int_grammar &grammar_,
-        const std::size_t last_terminal_,
-        const int_non_terminal_map &non_terminals_, size_t_pair &config_,
-        size_t_pair_set &set_)
-    {
-        std::queue<size_t_pair> queue_;
 
-        queue_.push(config_);
-
-        do
-        {
-            size_t_pair curr_ = queue_.front();
-
-            queue_.pop();
-            set_.insert(curr_);
-
-            if (curr_.second < grammar_[curr_.first]._rhs.size())
-            {
-                const std::size_t symbol_ =
-                    grammar_[curr_.first]._rhs[curr_.second];
-
-                if (symbol_ > last_terminal_)
-                {
-                    typename int_non_terminal_map::const_iterator iter_ =
-                        non_terminals_.find(symbol_);
-
-                    curr_.second = 0;
-
-                    for (std::size_t index_ = iter_->second._first_production;
-                        index_ != npos(); index_ = grammar_[index_]._next_lhs)
-                    {
-                        curr_.first = index_;
-
-                        if (set_.insert(curr_).second)
-                        {
-                            queue_.push(curr_);
-                        }
-                    }
-                }
-            }
-        } while (!queue_.empty());
-    }
-*/
     static void closure(const rules &rules_, const size_t_pair &config_,
         size_t_pair_set &set_)
     {
@@ -676,14 +633,15 @@ private:
     }
 
     static void fill_nt_states(const nt_enum_map &nt_enums_,
-        size_t_nt_state_map &nt_states_)
+        size_t_nt_state_map &nt_states_, const std::size_t terminals_)
     {
         typename nt_enum_map::const_iterator iter_ = nt_enums_.begin();
         typename nt_enum_map::const_iterator end_ = nt_enums_.end();
 
         for (; iter_ != end_; ++iter_)
         {
-            nt_states_.insert(size_t_nt_state_pair(iter_->second, nt_state()));
+            nt_states_.insert(size_t_nt_state_pair
+                (iter_->second, nt_state(terminals_)));
         }
     }
 
@@ -719,9 +677,12 @@ private:
                 {
                     if (rhs_iter_->_type == symbol::TERMINAL)
                     {
-                        if (lhs_._first_set.insert(terminals_.find
-                            (rhs_iter_->_name)->second._id).second)
+                        const std::size_t id_ = terminals_.find
+                            (rhs_iter_->_name)->second._id;
+
+                        if (!lhs_._first_set[id_])
                         {
+                            lhs_._first_set[id_] = 1;
                             changes_ = true;
                         }
 
@@ -734,17 +695,10 @@ private:
                     }
                     else
                     {
-                        const std::size_t size_ = lhs_._first_set.size();
                         nt_state &rhs_ = nt_states_.find
                             (nt_enums_.find(rhs_iter_->_name)->second)->second;
 
-                        lhs_._first_set.insert
-                            (rhs_._first_set.begin(), rhs_._first_set.end());
-
-                        if (size_ != lhs_._first_set.size())
-                        {
-                            changes_ = true;
-                        }
+                        changes_ |= set_union(lhs_._first_set, rhs_._first_set);
 
                         if (rhs_._nullable == false)
                             break;
@@ -781,8 +735,8 @@ private:
                         {
                             if (next_iter_->_type == symbol::TERMINAL)
                             {
-                                rhs_->_first_set.insert(terminals_.find
-                                    (next_iter_->_name)->second._id);
+                                rhs_->_first_set[terminals_.find
+                                    (next_iter_->_name)->second._id] = 1;
                                 break;
                             }
                             else if (next_iter_->_type == symbol::NON_TERMINAL)
@@ -791,9 +745,8 @@ private:
                                     (nt_enums_.find(next_iter_->_name)->
                                     second)->second;
 
-                                rhs_->_first_set.insert
-                                    (next_rhs_._first_set.begin(),
-                                    next_rhs_._first_set.end());
+                                set_union(rhs_->_first_set,
+                                    next_rhs_._first_set);
                                 rhs_ = &nt_states_.find(nt_enums_.find
                                     (next_iter_->_name)->second)->second;
                             }
@@ -889,18 +842,21 @@ private:
                             (rhs_iter_->_name)->second;
                         typename size_t_nt_state_map::iterator
                             lstate_iter_ = nt_states_.find(rhs_id_);
-                        const std::size_t size_ =
-                            lstate_iter_->second._follow_set.size();
                         bool nullable_ = next_iter_ == rhs_end_;
 
                         if (next_iter_ != rhs_end_)
                         {
                             if (next_iter_->_type == symbol::TERMINAL)
                             {
+                                const std::size_t id_ = terminals_.find
+                                    (next_iter_->_name)->second._id;
+
                                 // Just add terminal.
-                                lstate_iter_->second._follow_set.insert
-                                    (terminals_.find(next_iter_->_name)->
-                                    second._id);
+                                if (!lstate_iter_->second._follow_set[id_])
+                                {
+                                    lstate_iter_->second._follow_set[id_] = 1;
+                                    changes_ = true;
+                                }
                             }
                             else
                             {
@@ -912,9 +868,9 @@ private:
                                     (nt_enums_.find(next_iter_->_name)->
                                     second);
 
-                                lstate_iter_->second._follow_set.insert
-                                    (rstate_iter_->second._first_set.begin(),
-                                    rstate_iter_->second._first_set.end());
+                                changes_ |= set_union
+                                    (lstate_iter_->second._follow_set,
+                                    rstate_iter_->second._first_set);
                                 ++next_iter_;
 
                                 // If nullable, keep going
@@ -930,9 +886,16 @@ private:
                                             next_id_ = terminals_.find
                                                 (next_iter_->_name)->
                                                     second._id;
+
                                             // Just add terminal.
-                                            lstate_iter_->second._follow_set.
-                                                insert(next_id_);
+                                            if (!lstate_iter_->second.
+                                                _follow_set[next_id_])
+                                            {
+                                                lstate_iter_->second._follow_set
+                                                    [next_id_] = 1;
+                                                changes_ = true;
+                                            }
+
                                             break;
                                         }
                                         else
@@ -941,11 +904,11 @@ private:
                                                 (next_iter_->_name)->second;
                                             rstate_iter_ =
                                                 nt_states_.find(next_id_);
-                                            lstate_iter_->second._follow_set.
-                                                insert(rstate_iter_->
-                                                    second._first_set.begin(),
-                                                    rstate_iter_->
-                                                    second._first_set.end());
+                                            changes_ |= set_union
+                                                (lstate_iter_->second.
+                                                    _follow_set,
+                                                rstate_iter_->second.
+                                                    _first_set);
 
                                             if (!rstate_iter_->second._nullable)
                                             {
@@ -966,14 +929,9 @@ private:
                             typename size_t_nt_state_map::const_iterator
                                 rstate_iter_ = nt_states_.find(lhs_id_);
 
-                            lstate_iter_->second._follow_set.insert
-                                (rstate_iter_->second._follow_set.begin(),
-                                rstate_iter_->second._follow_set.end());
-                        }
-
-                        if (size_ != lstate_iter_->second._follow_set.size())
-                        {
-                            changes_ = true;
+                            changes_ |= set_union
+                                (lstate_iter_->second._follow_set,
+                                rstate_iter_->second._follow_set);
                         }
                     }
                 }
@@ -1043,7 +1001,8 @@ private:
 
                 if (production_._symbols._rhs.size() == iter_->second)
                 {
-                    typename nt_state::size_t_set follow_set_;
+                    typename nt_state::size_t_set follow_set_
+                        (terminals_.size(), 0);
 
                     // config is reduction
                     for (typename prod_deque::const_iterator p_iter_ =
@@ -1069,20 +1028,18 @@ private:
                             typename size_t_nt_state_map::const_iterator
                                 nt_iter_ = new_nt_states_.find(lhs_id_);
 
-                            follow_set_.insert(nt_iter_->second._follow_set.
-                                begin(), nt_iter_->second._follow_set.end());
+                            set_union(follow_set_,
+                                nt_iter_->second._follow_set);
                         }
                     }
 
-                    typename nt_state::size_t_set::const_iterator
-                        follow_iter_ = follow_set_.begin();
-                    typename nt_state::size_t_set::const_iterator
-                        follow_end_ = follow_set_.end();
-
-                    for (; follow_iter_ != follow_end_; ++follow_iter_)
+                    for (std::size_t i_ = 0, size_ = follow_set_.size();
+                        i_ < size_; ++i_)
                     {
+                        if (!follow_set_[i_]) continue;
+                        
                         typename state_machine::entry &lhs_ = sm_._table
-                            [index_ * row_size_ + *follow_iter_];
+                            [index_ * row_size_ + i_];
                         typename state_machine::entry rhs_
                             (reduce, production_._index);
 
@@ -1092,11 +1049,34 @@ private:
                         }
 
                         fill_entry(rules_, configs_[index_], symbols_,
-                            lhs_, *follow_iter_, rhs_, warnings_);
+                            lhs_, i_, rhs_, warnings_);
                     }
                 }
             }
         }
+    }
+
+    // Add every element of rhs_ to lhs_. Return true if lhs_ changes.
+    static bool set_union(std::vector<char> &lhs_,
+        const std::vector<char> &rhs_)
+    {
+        const std::size_t size_ = lhs_.size();
+        bool progress_ = false;
+        char *s1_ = &lhs_.front();
+        const char *s2_ = &rhs_.front();
+
+        for (std::size_t i_ = 0; i_ < size_; i_++)
+        {
+            if (s2_[i_] == 0) continue;
+
+            if (s1_[i_] == 0)
+            {
+                s1_[i_] = 1;
+                progress_ = true;
+            }
+        }
+
+        return progress_;
     }
 
     static void fill_entry(const rules &rules_, const size_t_pair_set &config_,
@@ -1232,7 +1212,7 @@ private:
             dump_action(grammar_, config_, symbols_, id_, lhs_, ss_);
             ss_ << '/' << actions_[rhs_._action];
             dump_action(grammar_, config_, symbols_, id_, rhs_, ss_);
-            ss_ << " conflict.";
+            ss_ << " conflict.\n";
             *warnings_ += ss_.str();
             //throw runtime_error(ss_.str());
         }

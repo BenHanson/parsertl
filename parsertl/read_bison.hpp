@@ -13,33 +13,37 @@ namespace parsertl
 {
 void read_bison(const char *start_, const char *end_, rules &rules_)
 {
-    typedef parser<lexertl::criterator> parser;
     rules grules_;
+    typedef parser<lexertl::criterator> parser;
     parser parser_;
     lexertl::rules lrules_;
     lexertl::state_machine lsm_;
 
-    grules_.token("':' ';' '|' EMPTY LEFT LITERAL NAME NEWLINE NONASSOC "
-        "PREC PRECEDENCE RIGHT START TOKEN");
+    grules_.token("LITERAL NAME");
     grules_.push("start", "list");
-    grules_.push("list", "directives rules");
-    grules_.push("directives", "directives directive "
-        "| directive");
+    grules_.push("list", "directives '%%' rules '%%'");
+    grules_.push("directives", "%empty "
+        "| directives directive ");
 
+    grules_.push("directive", "'%code' "
+        "| '%define' "
+        "| '%expect' "
+        "| '%verbose' "
+        "| '%initial-action'");
     const std::size_t token_index_ =
-        grules_.push("directive", "TOKEN tokens NEWLINE");
+        grules_.push("directive", "'%token' tokens '\n'");
     const std::size_t left_index_ =
-        grules_.push("directive", "LEFT tokens NEWLINE");
+        grules_.push("directive", "'%left' tokens '\n'");
     const std::size_t right_index_ =
-        grules_.push("directive", "RIGHT tokens NEWLINE");
+        grules_.push("directive", "'%right' tokens '\n'");
     const std::size_t nonassoc_index_ = grules_.push("directive",
-        "NONASSOC tokens NEWLINE");
+        "'%nonassoc' tokens '\n'");
     const std::size_t precedence_index_ =
-        grules_.push("directive", "PRECEDENCE tokens NEWLINE");
+        grules_.push("directive", "'%precedence' tokens '\n'");
     const std::size_t start_index_ =
-        grules_.push("directive", "START NAME NEWLINE");
+        grules_.push("directive", "'%start' NAME '\n'");
 
-    grules_.push("directive", "NEWLINE");
+    grules_.push("directive", "'\n'");
     grules_.push("tokens", "tokens name "
         "| name");
     grules_.push("name", "LITERAL | NAME");
@@ -53,34 +57,39 @@ void read_bison(const char *start_, const char *end_, rules &rules_)
     grules_.push("rule", "';'");
     grules_.push("productions", "productions '|' production prec "
         "| production prec");
-    grules_.push("production", "EMPTY "
-        "| prod_list");
-    grules_.push("prod_list",
-        "prod_list token "
-        "| token "
-        "| %empty");
+    grules_.push("production", "'%empty' | prod_list");
+    grules_.push("prod_list", "token "
+        "| prod_list token");
     grules_.push("token", "LITERAL | NAME");
-    grules_.push("prec", "%empty | PREC NAME");
-    generator::build(grules_, parser_.sm);
+    grules_.push("prec", "%empty | '%prec' NAME");
+
+    std::string warnings_;
+
+    generator::build(grules_, parser_.sm, &warnings_);
 
     lrules_.push_state("CODE");
     lrules_.push_state("FINISH");
     lrules_.push_state("PRODUCTIONS");
     lrules_.push_state("PREC");
 
-    lrules_.push("%left", grules_.token_id("LEFT"));
-    lrules_.push("\n", grules_.token_id("NEWLINE"));
-    lrules_.push("%nonassoc", grules_.token_id("NONASSOC"));
-    lrules_.push("%precedence", grules_.token_id("PRECEDENCE"));
-    lrules_.push("%right", grules_.token_id("RIGHT"));
-    lrules_.push("%start", grules_.token_id("START"));
-    lrules_.push("%token", grules_.token_id("TOKEN"));
+    lrules_.push("%code[^{]*", grules_.token_id("'%code'"));
+    lrules_.push("%define.*", grules_.token_id("'%define'"));
+    lrules_.push("%expect.*", grules_.token_id("'%expect'"));
+    lrules_.push("%verbose", grules_.token_id("'%verbose'"));
+    lrules_.push("%initial-action[^{]*", grules_.token_id("'%initial-action'"));
+    lrules_.push("%left", grules_.token_id("'%left'"));
+    lrules_.push("\n", grules_.token_id("'\n'"));
+    lrules_.push("%nonassoc", grules_.token_id("'%nonassoc'"));
+    lrules_.push("%precedence", grules_.token_id("'%precedence'"));
+    lrules_.push("%right", grules_.token_id("'%right'"));
+    lrules_.push("%start", grules_.token_id("'%start'"));
+    lrules_.push("%token", grules_.token_id("'%token'"));
     lrules_.push("%union[^{]*[{](.|\n)*?[}]", lrules_.skip());
     lrules_.push("<[^>]+>", lrules_.skip());
     lrules_.push("%[{](.|\n)*?%[}]", lrules_.skip());
     lrules_.push("[ \t\r]+", lrules_.skip());
 
-    lrules_.push("CODE,PRODUCTIONS", "[{]", ">CODE");
+    lrules_.push("INITIAL,CODE,PRODUCTIONS", "[{]", ">CODE");
     lrules_.push("CODE", "'(\\\\.|[^'])*'", ".");
 
     lrules_.push("CODE", "[\"](\\\\.|[^\"])*[\"]", ".");
@@ -89,18 +98,19 @@ void read_bison(const char *start_, const char *end_, rules &rules_)
     lrules_.push("CODE", "[^}]", ".");
     lrules_.push("CODE", "[}]", lrules_.skip(), "<");
 
-    lrules_.push("INITIAL", "%%", lrules_.skip(), "PRODUCTIONS");
+    lrules_.push("INITIAL", "%%", grules_.token_id("'%%'"), "PRODUCTIONS");
     lrules_.push("PRODUCTIONS", ":", grules_.token_id("':'"), ".");
     lrules_.push("PRODUCTIONS", ";", grules_.token_id("';'"), ".");
     lrules_.push("PRODUCTIONS", "[|]", grules_.token_id("'|'"), "PRODUCTIONS");
-    lrules_.push("PRODUCTIONS", "%empty", grules_.token_id("EMPTY"), ".");
+    lrules_.push("PRODUCTIONS", "%empty", grules_.token_id("'%empty'"), ".");
     lrules_.push("INITIAL,PRODUCTIONS",
-        "'(\\\\([^0-9cx]|[0-9]{1,3}|c[@a-zA-Z]|x\\d+)|[^'])'",
+        "'(\\\\([^0-9cx]|[0-9]{1,3}|c[@a-zA-Z]|x\\d+)|[^'])+'|"
+        "[\"](\\\\([^0-9cx]|[0-9]{1,3}|c[@a-zA-Z]|x\\d+)|[^\"])+[\"]",
         grules_.token_id("LITERAL"), ".");
     lrules_.push("INITIAL,PRODUCTIONS",
         "[A-Za-z_.][-A-Za-z_.0-9]*", grules_.token_id("NAME"), ".");
-    lrules_.push("PRODUCTIONS", "%%", lrules_.skip(), "FINISH");
-    lrules_.push("PRODUCTIONS", "%prec", grules_.token_id("PREC"), "PREC");
+    lrules_.push("PRODUCTIONS", "%%", grules_.token_id("'%%'"), "FINISH");
+    lrules_.push("PRODUCTIONS", "%prec", grules_.token_id("'%prec'"), "PREC");
     lrules_.push("PREC",
         "[A-Za-z_.][-A-Za-z_.0-9]*", grules_.token_id("NAME"), "PRODUCTIONS");
     // Always skip comments
@@ -109,6 +119,7 @@ void read_bison(const char *start_, const char *end_, rules &rules_)
     // All whitespace in PRODUCTIONS mode is skipped.
     lrules_.push("PREC,PRODUCTIONS", "\\s+", lrules_.skip(), ".");
     lrules_.push("FINISH", "(.|\n)+", lrules_.skip(), "INITIAL");
+
     lexertl::generator::build(lrules_, lsm_);
 
     lexertl::criterator iter_(start_, end_, lsm_);
