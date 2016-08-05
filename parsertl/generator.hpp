@@ -48,11 +48,6 @@ public:
 
         rules_.validate();
         build_dfa(rules_, dfa_);
-
-        nt_info_vector nt_info_(rules_.nt_locations().size(),
-            nt_info(rules_.tokens_info().size()));
-
-        build_first_sets(rules_, nt_info_);
         rewrite(rules_, dfa_, new_grammar_, new_rules_);
 
         nt_info_vector new_nt_info_(new_rules_.nt_locations().size(),
@@ -63,8 +58,8 @@ public:
         new_nt_info_[new_rules_.start()]._follow_set[0] = 1;
         build_follow_sets(new_rules_, new_nt_info_);
         sm_.clear();
-        build_table(rules_, nt_info_, dfa_, new_grammar_, new_rules_,
-            new_nt_info_, sm_, warnings_);
+        build_table(rules_, dfa_, new_grammar_, new_rules_, new_nt_info_, sm_,
+            warnings_);
         copy_rules(rules_, sm_);
     }
 
@@ -331,8 +326,8 @@ public:
                             nt_info *rstate_iter_ = &nt_info_[lhs_id_];
 
                             changes_ |= set_union
-                            (lstate_iter_->_follow_set,
-                                rstate_iter_->_follow_set);
+                                (lstate_iter_->_follow_set,
+                                    rstate_iter_->_follow_set);
                         }
                     }
                 }
@@ -510,8 +505,7 @@ private:
     typedef typename rules::token_info token_info;
     typedef typename rules::token_info_vector token_info_vector;
 
-    static void build_table(const rules &rules_,
-        const nt_info_vector &nt_info_, const dfa &dfa_,
+    static void build_table(const rules &rules_, const dfa &dfa_,
         const prod_deque &new_grammar_, const rules &new_rules_,
         const nt_info_vector &new_nt_info_, state_machine &sm_,
         std::string *warnings_)
@@ -519,14 +513,15 @@ private:
         const grammar &grammar_ = rules_.grammar();
         const std::size_t start_ = rules_.start();
         const std::size_t terminals_ = rules_.tokens_info().size();
+        const std::size_t non_terminals_ = rules_.nt_locations().size();
         string_vector symbols_;
-        const std::size_t row_size_ = terminals_ + nt_info_.size();
+        const std::size_t columns_ = terminals_ + non_terminals_;
         const std::size_t dfa_size_ = dfa_.size();
         const string_size_t_map &new_nt_map_ = new_rules_.non_terminals();
 
         rules_.terminals(symbols_);
         rules_.non_terminals(symbols_);
-        sm_._columns = terminals_ + nt_info_.size();
+        sm_._columns = columns_;
         sm_._rows = dfa_.size();
         sm_._table.resize(sm_._columns * sm_._rows);
 
@@ -540,7 +535,7 @@ private:
             {
                 const std::size_t id_ = iter_->first;
                 typename state_machine::entry &lhs_ =
-                    sm_._table[index_ * row_size_ + id_];
+                    sm_._table[index_ * columns_ + id_];
                 typename state_machine::entry rhs_;
 
                 if (id_ < terminals_)
@@ -602,7 +597,7 @@ private:
                         if (!follow_set_[i_]) continue;
 
                         typename state_machine::entry &lhs_ =
-                            sm_._table[index_ * row_size_ + i_];
+                            sm_._table[index_ * columns_ + i_];
                         typename state_machine::entry rhs_
                             (reduce, production_._index);
 
