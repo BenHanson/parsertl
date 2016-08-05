@@ -254,7 +254,7 @@ public:
         }
         else
         {
-            string_size_t_map::const_iterator iter_ =
+            typename string_size_t_map::const_iterator iter_ =
                 _non_terminals.find(_start);
 
             if (iter_ != _non_terminals.end())

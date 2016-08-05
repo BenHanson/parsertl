@@ -30,9 +30,9 @@ public:
         void swap(prod &rhs_)
         {
             std::swap(_lhs, rhs_._lhs);
-            _lhs_indexes.swap(rhs_._lhs_indexes);
+            std::swap(_lhs_indexes, rhs_._lhs_indexes);
             _rhs.swap(rhs_._rhs);
-            _rhs_indexes.swap(rhs_._rhs_indexes);
+            std::swap(_rhs_indexes, rhs_._rhs_indexes);
         }
     };
 
@@ -328,8 +328,7 @@ public:
                         {
                             // If there is a production A -> aB
                             // then everything in FOLLOW(A) is in FOLLOW(B).
-                            typename nt_info *rstate_iter_ =
-                                &nt_info_[lhs_id_];
+                            nt_info *rstate_iter_ = &nt_info_[lhs_id_];
 
                             changes_ |= set_union
                             (lstate_iter_->_follow_set,
