@@ -7,10 +7,8 @@
 #define PARSERTL_DEBUG_HPP
 
 #include "dfa.hpp"
-#include "nt_state.hpp"
 #include <ostream>
 #include "rules.hpp"
-#include "state_machine.hpp"
 
 namespace parsertl
 {
@@ -19,42 +17,38 @@ class basic_debug
 {
 public:
     typedef basic_rules<char_type> rules;
-    typedef typename rules::nt_enum_map nt_enum_map;
     typedef std::basic_ostream<char_type> ostream;
-    typedef typename rules::production production;
-    typedef typename rules::production_deque production_deque;
-    typedef std::basic_string<char_type> string;
-    typedef typename rules::symbol symbol;
-    typedef typename rules::symbol_deque symbol_deque;
-    typedef std::map<std::size_t, string> symbol_map;
-    typedef typename rules::terminal_map terminal_map;
 
     static void dump(const rules &rules_, ostream &stream_)
     {
-        const string start_ = rules_.start();
+        const std::size_t start_ = rules_.start();
         const production_deque &grammar_ = rules_.grammar();
-        const terminal_map &terminals_ = rules_.terminals();
-        std::set<string> seen_;
+        const token_info_vector &tokens_info_ = rules_.tokens_info();
+        const std::size_t terminals_ = tokens_info_.size();
+            string_vector symbols_;
+        std::set<std::size_t> seen_;
         token_map map_;
 
-        for (typename terminal_map::const_iterator iter_ =
-            terminals_.begin(), end_ = terminals_.end();
-            iter_ != end_; ++iter_)
-        {
-            if (iter_->second._id == 0) continue;
+        rules_.terminals(symbols_);
+        rules_.non_terminals(symbols_);
 
-            token_info info_(iter_->second._precedence,
-                iter_->second._associativity);
+        // Skip EOI token
+        for (std::size_t idx_ = 1, size_ = tokens_info_.size();
+            idx_ < size_; ++idx_)
+        {
+            const token_info &token_info_ = tokens_info_[idx_];
+            token_prec_assoc info_(token_info_._precedence,
+                token_info_._associativity);
             typename token_map::iterator map_iter_ = map_.find(info_);
 
             if (map_iter_ == map_.end())
             {
-                map_.insert(token_pair(info_, iter_->first));
+                map_.insert(token_pair(info_, symbols_[idx_]));
             }
             else
             {
                 map_iter_->second += ' ';
-                map_iter_->second += iter_->first;
+                map_iter_->second += symbols_[idx_];
             }
         }
 
@@ -63,31 +57,31 @@ public:
         {
             switch (iter_->first.second)
             {
-                case rules::token_info::token:
-                    token(stream_);
-                    break;
-                case rules::token_info::precedence:
-                    precedence(stream_);
-                    break;
-                case rules::token_info::nonassoc:
-                    nonassoc(stream_);
-                    break;
-                case rules::token_info::left:
-                    left(stream_);
-                    break;
-                case rules::token_info::right:
-                    right(stream_);
-                    break;
+            case rules::token_info::token:
+                token(stream_);
+                break;
+            case rules::token_info::precedence:
+                precedence(stream_);
+                break;
+            case rules::token_info::nonassoc:
+                nonassoc(stream_);
+                break;
+            case rules::token_info::left:
+                left(stream_);
+                break;
+            case rules::token_info::right:
+                right(stream_);
+                break;
             }
 
             stream_ << iter_->second << '\n';
         }
 
-        if (!start_.empty())
+        if (start_ != static_cast<std::size_t>(~0))
         {
             stream_ << '\n';
             start(stream_);
-            stream_ << start_ << '\n' << '\n';
+            stream_ << symbols_[terminals_ + start_] << '\n' << '\n';
         }
 
         stream_ << '%' << '%' << '\n' << '\n';
@@ -96,31 +90,36 @@ public:
             grammar_.begin(), end_ = grammar_.end();
             iter_ != end_; ++iter_)
         {
-            if (seen_.find(iter_->_symbols._lhs) == seen_.end())
+            if (seen_.find(iter_->_lhs) == seen_.end())
             {
                 typename production_deque::const_iterator lhs_iter_ = iter_;
                 std::size_t index_ = lhs_iter_ - grammar_.begin();
 
-                stream_ << lhs_iter_->_symbols._lhs;
+                stream_ << symbols_[terminals_ + lhs_iter_->_lhs];
                 stream_ << ':';
 
                 while (index_ != ~0)
                 {
-                    if (lhs_iter_->_symbols._rhs.empty())
+                    if (lhs_iter_->_rhs.empty())
                     {
                         stream_ << ' ';
                         empty(stream_);
                     }
                     else
                     {
-                        typename symbol_deque::const_iterator rhs_iter_ =
-                            lhs_iter_->_symbols._rhs.begin();
-                        typename symbol_deque::const_iterator rhs_end_ =
-                            lhs_iter_->_symbols._rhs.end();
+                        typename symbol_vector::const_iterator rhs_iter_ =
+                            lhs_iter_->_rhs.begin();
+                        typename symbol_vector::const_iterator rhs_end_ =
+                            lhs_iter_->_rhs.end();
 
                         for (; rhs_iter_ != rhs_end_; ++rhs_iter_)
                         {
-                            stream_ << ' ' << rhs_iter_->_name;
+                            const std::size_t id_ =
+                                rhs_iter_->_type == symbol::TERMINAL ?
+                                rhs_iter_->_id :
+                                terminals_ + rhs_iter_->_id;
+
+                            stream_ << ' ' << symbols_[id_];
                         }
                     }
 
@@ -128,11 +127,14 @@ public:
 
                     if (index_ != ~0)
                     {
+                        const string &lhs_ =
+                            symbols_[terminals_ + lhs_iter_->_lhs];
+
                         lhs_iter_ = grammar_.begin() + index_;
                         stream_ << '\n';
 
-                        for (std::size_t i_ = 0, size_ = lhs_iter_->
-                            _symbols._lhs.size(); i_ < size_; ++i_)
+                        for (std::size_t i_ = 0, size_ = lhs_.size();
+                            i_ < size_; ++i_)
                         {
                             stream_ << ' ';
                         }
@@ -141,7 +143,7 @@ public:
                     }
                 }
 
-                seen_.insert(iter_->_symbols._lhs);
+                seen_.insert(iter_->_lhs);
                 stream_ << ';' << '\n' << '\n';
             }
         }
@@ -149,35 +151,45 @@ public:
         stream_ << '%' << '%' << '\n';
     }
 
-    static void dump(const rules &rules_, size_t_pair_set_deque &configs_,
-        const dfa &dfa_, const nt_enum_map &nt_enums_, ostream &stream_)
+    static void dump(const rules &rules_, const dfa &dfa_, ostream &stream_)
     {
         const production_deque &grammar_ = rules_.grammar();
-        const terminal_map &terminals_ = rules_.terminals();
+        const std::size_t terminals_ = rules_.tokens_info().size();
+        string_vector symbols_;
 
-        for (std::size_t idx_ = 0; idx_ < configs_.size(); ++idx_)
+        rules_.terminals(symbols_);
+        rules_.non_terminals(symbols_);
+
+        for (std::size_t idx_ = 0, dfa_size_ = dfa_.size();
+            idx_ < dfa_size_; ++idx_)
         {
-            const size_t_pair_set &config_ = configs_[idx_];
+            const dfa_state &state_ = dfa_[idx_];
+            const size_t_pair_vector &config_ = state_._closure;
 
             state(idx_, stream_);
 
-            for (typename size_t_pair_set::const_iterator iter_ =
+            for (typename size_t_pair_vector::const_iterator iter_ =
                 config_.begin(), end_ = config_.end(); iter_ != end_; ++iter_)
             {
                 const production &p_ = grammar_[iter_->first];
                 std::size_t j_ = 0;
 
-                stream_ << ' ' << ' ' << p_._symbols._lhs <<
+                stream_ << ' ' << ' ' << symbols_[terminals_ + p_._lhs] <<
                     ' ' << '-' << '>';
 
-                for (; j_ < p_._symbols._rhs.size(); ++j_)
+                for (; j_ < p_._rhs.size(); ++j_)
                 {
+                    const symbol &symbol_ = p_._rhs[j_];
+                    const std::size_t id_ = symbol_._type == symbol::TERMINAL ?
+                        symbol_._id :
+                        terminals_ + symbol_._id;
+
                     if (j_ == iter_->second)
                     {
                         stream_ << ' ' << '.';
                     }
 
-                    stream_ << ' ' << p_._symbols._rhs[j_]._name;
+                    stream_ << ' ' << symbols_[id_];
                 }
 
                 if (j_ == iter_->second)
@@ -188,439 +200,53 @@ public:
                 stream_ << '\n';
             }
 
-            const dfa_state &state_ = dfa_[idx_];
-
             if (!state_._transitions.empty())
                 stream_ << '\n';
 
-            for (typename dfa_state::transition_map::const_iterator t_ =
+            for (typename size_t_pair_vector::const_iterator t_ =
                 state_._transitions.begin(), e_ = state_._transitions.end();
                 t_ != e_; ++t_)
             {
-                stream_ << ' ' << ' ';
-
-                if (t_->first < terminals_.size())
-                {
-                    typename terminal_map::const_iterator enum_ =
-                        terminals_.begin();
-
-                    for (typename terminal_map::const_iterator e_ =
-                        terminals_.end(); enum_ != e_; ++enum_)
-                    {
-                        if (enum_->second._id == t_->first)
-                        {
-                            break;
-                        }
-                    }
-
-                    stream_ << enum_->first;
-                }
-                else
-                {
-                    typename nt_enum_map::const_iterator enum_ =
-                        nt_enums_.begin();
-
-                    for (typename nt_enum_map::const_iterator e_ =
-                        nt_enums_.end(); enum_ != e_; ++enum_)
-                    {
-                        if (enum_->second == t_->first)
-                        {
-                            break;
-                        }
-                    }
-
-                    stream_ << enum_->first;
-                }
-
-                stream_ << ' ' << '-' << '>' << ' ' << t_->second << '\n';
+                stream_ << ' ' << ' ' << symbols_[t_->first] << ' ' << '-' <<
+                    '>' << ' ' << t_->second << '\n';
             }
 
             stream_ << '\n';
-        }
-    }
-
-    static void dump(const size_t_nt_state_map &nt_states_,
-        const symbol_map &symbols_, ostream &stream_)
-    {
-        typename size_t_nt_state_map::const_iterator iter_ =
-            nt_states_.begin();
-        typename size_t_nt_state_map::const_iterator end_ =
-            nt_states_.end();
-        typename nt_state::size_t_set::const_iterator set_iter_;
-        typename nt_state::size_t_set::const_iterator set_end_;
-
-        first_follow(stream_);
-
-        for (; iter_ != end_; ++iter_)
-        {
-            first(stream_);
-            stream_ << symbols_.find(iter_->first)->second;
-            bracket_equals(stream_);
-            set_iter_ = iter_->second._first_set.begin();
-            set_end_ = iter_->second._first_set.end();
-
-            if (set_iter_ != set_end_)
-            {
-                stream_ << symbols_.find(*set_iter_++)->second;
-            }
-
-            for (; set_iter_ != set_end_; ++set_iter_)
-            {
-                comma(stream_);
-                stream_ << symbols_.find(*set_iter_)->second;
-            }
-
-            stream_ << '\n';
-        }
-
-        stream_ << '\n';
-        iter_ = nt_states_.begin();
-        end_ = nt_states_.end();
-
-        for (; iter_ != end_; ++iter_)
-        {
-            follow(stream_);
-            stream_ << symbols_.find(iter_->first)->second;
-            bracket_equals(stream_);
-            set_iter_ = iter_->second._follow_set.begin();
-            set_end_ = iter_->second._follow_set.end();
-
-            if (set_iter_ != set_end_)
-            {
-                stream_ << symbols_.find(*set_iter_++)->second;
-            }
-
-            for (; set_iter_ != set_end_; ++set_iter_)
-            {
-                comma(stream_);
-                stream_ << symbols_.find(*set_iter_)->second;
-            }
-
-            stream_ << '\n';
-        }
-    }
-
-    static void dump(const rules &rules_, const state_machine &sm_,
-        const symbol_map &symbols_, size_t_pair_set_deque &configs_,
-        ostream &stream_)
-    {
-        const grammar &grammar_ = rules_.grammar();
-        const std::size_t terminals_ = rules_.terminals().size();
-        typename state_machine::table::const_iterator iter_ =
-            sm_._table.begin();
-
-        parse_table(stream_);
-
-        for (std::size_t row_ = 0; row_ < sm_._rows; ++row_)
-        {
-            string last_lhs_;
-            std::size_t max_ = 0;
-            typename size_t_pair_set::const_iterator
-                citer_ = configs_[row_].begin();
-            typename size_t_pair_set::const_iterator
-                cend_ = configs_[row_].end();
-            bool shift_ = false;
-            bool error_ = false;
-            bool reduce_ = false;
-            bool goto_ = false;
-
-            state(row_, stream_);
-
-            for (; citer_ != cend_; ++citer_)
-            {
-                ostringstream line_stream_;
-                string line_;
-                const production &production_ = grammar_[citer_->first];
-                const std::size_t rhs_size_ = production_._symbols._rhs.size();
-
-                line_stream_ << citer_->first;
-                line_ = line_stream_.str();
-
-                for (std::size_t i_ = 0, len_ = 5 - line_.size(); i_ < len_;
-                    ++i_)
-                {
-                    stream_ << ' ';
-                }
-
-                stream_ << citer_->first << ' ';
-
-                if (production_._symbols._lhs == last_lhs_)
-                {
-                    stream_ << string(last_lhs_.size(), ' ') << '|';
-                }
-                else
-                {
-                    stream_ << production_._symbols._lhs << ':';
-                    last_lhs_ = production_._symbols._lhs;
-                }
-
-                for (std::size_t i_ = 0; i_ < rhs_size_; ++i_)
-                {
-                    if (i_ == citer_->second)
-                    {
-                        stream_ << ' ' << '.';
-                    }
-
-                    stream_ << ' ' << production_._symbols._rhs[i_]._name;
-                }
-
-                if (citer_->second == rhs_size_)
-                {
-                    stream_ << ' ' << '.';
-                }
-
-                stream_ << '\n';
-            }
-
-            stream_ << '\n';
-
-            for (std::size_t column_ = 0; column_ < terminals_; ++column_)
-            {
-                const state_machine::entry &entry_ =
-                    (&*iter_)[column_];
-
-                if (entry_._action == shift)
-                {
-                    max_ = std::max(max_, symbols_.find(column_)->
-                        second.size());
-                }
-            }
-
-            shift_ = max_ > 0;
-
-            if (shift_)
-            {
-                for (std::size_t column_ = 0; column_ < terminals_; ++column_)
-                {
-                    const state_machine::entry &entry_ =
-                        (&*iter_)[column_];
-
-                    if (entry_._action == shift)
-                    {
-                        const string &name_ = symbols_.find(column_)->second;
-
-                        stream_ << ' ';
-                        stream_ << ' ';
-                        stream_ << ' ';
-                        stream_ << ' ';
-                        stream_ << name_;
-                        stream_ << string(max_ + 2 - name_.size(), ' ');
-                        oshift(stream_);
-                        stream_ << entry_._param;
-                        stream_ << '\n';
-                    }
-                }
-
-                stream_ << '\n';
-            }
-
-            max_ = 0;
-
-            for (std::size_t column_ = 0; column_ < terminals_; ++column_)
-            {
-                const state_machine::entry &entry_ =
-                    (&*iter_)[column_];
-
-                if (entry_._action == error &&
-                    entry_._param == non_associative)
-                {
-                    max_ = std::max(max_, symbols_.find(column_)->
-                        second.size());
-                }
-            }
-
-            error_ = max_ > 0;
-
-            if (error_)
-            {
-                for (std::size_t column_ = 0; column_ < terminals_; ++column_)
-                {
-                    const state_machine::entry &entry_ =
-                        (&*iter_)[column_];
-
-                    if (entry_._action == error &&
-                        entry_._param == non_associative)
-                    {
-                        const string &name_ = symbols_.find(column_)->second;
-
-                        stream_ << ' ';
-                        stream_ << ' ';
-                        stream_ << ' ';
-                        stream_ << ' ';
-                        stream_ << name_;
-                        stream_ << string(max_ + 2 - name_.size(), ' ');
-                        oerror(stream_);
-                        stream_ << '\n';
-                    }
-                }
-
-                stream_ << '\n';
-            }
-
-            max_ = 0;
-
-            bool first_ = true;
-            std::size_t rule_ = ~0;
-            bool default_ = true;
-
-            for (std::size_t column_ = 0; column_ < terminals_; ++column_)
-            {
-                const state_machine::entry &entry_ = (&*iter_)[column_];
-
-                if (entry_._action == reduce || entry_._action == accept)
-                {
-                    typename symbol_map::const_iterator siter_ =
-                        symbols_.find(column_);
-
-                    if (first_)
-                    {
-                        rule_ = entry_._param;
-                        first_ = false;
-                    }
-                    else
-                    {
-                        if (rule_ != entry_._param)
-                        {
-                            default_ = false;
-                        }
-                    }
-
-                    max_ = std::max(max_, siter_->second.size());
-                }
-            }
-
-            reduce_ = max_ > 0;
-
-            if (reduce_)
-            {
-                for (std::size_t column_ = 0; column_ < terminals_;
-                    ++column_)
-                {
-                    const state_machine::entry &entry_ =
-                        (&*iter_)[column_];
-
-                    if (entry_._action == reduce || entry_._action == accept)
-                    {
-                        const string &name_ =
-                            symbols_.find(column_)->second;
-
-                        stream_ << ' ';
-                        stream_ << ' ';
-                        stream_ << ' ';
-                        stream_ << ' ';
-
-                        if (default_)
-                        {
-                            dollar_default(stream_);
-                            stream_ << ' ';
-                            stream_ << ' ';
-                        }
-                        else
-                        {
-                            stream_ << name_;
-                            stream_ << string(max_ + 2 - name_.size(), ' ');
-                        }
-
-                        if (entry_._action == reduce)
-                        {
-                            oreduce(stream_);
-                            stream_ << entry_._param;
-                            stream_ << ' ';
-                            stream_ << '(';
-                            stream_ << symbols_.find
-                                (sm_._rules[entry_._param].first)->second;
-                            stream_ << ')';
-                        }
-                        else
-                        {
-                            oaccept(stream_);
-                        }
-
-                        stream_ << '\n';
-
-                        if (default_)
-                        {
-                            break;
-                        }
-                    }
-                }
-
-                stream_ << '\n';
-            }
-
-            max_ = 0;
-
-            for (std::size_t column_ = terminals_; column_ < symbols_.size();
-                ++column_)
-            {
-                const state_machine::entry &entry_ = (&*iter_)[column_];
-
-                if (entry_._action == go_to)
-                {
-                    max_ = std::max(max_, symbols_.find(column_)->
-                        second.size());
-                }
-            }
-
-            goto_ = max_ > 0;
-
-            if (goto_)
-            {
-                for (std::size_t column_ = terminals_;
-                    column_ < symbols_.size(); ++column_)
-                {
-                    const state_machine::entry &entry_ = (&*iter_)[column_];
-
-                    if (entry_._action == go_to)
-                    {
-                        const string &name_ = symbols_.find(column_)->second;
-
-                        stream_ << ' ';
-                        stream_ << ' ';
-                        stream_ << ' ';
-                        stream_ << ' ';
-                        stream_ << name_;
-                        stream_ << string(max_ + 2 - name_.size(), ' ');
-                        ogoto(stream_);
-                        stream_ << entry_._param;
-                        stream_ << '\n';
-                    }
-                }
-
-                stream_ << '\n';
-            }
-
-            stream_ << '\n';
-            iter_ += symbols_.size();
         }
     }
 
 private:
-    typedef typename rules::production_deque grammar;
-    typedef std::basic_ostringstream<char_type> ostringstream;
+    typedef typename rules::production production;
+    typedef typename rules::production_deque production_deque;
+    typedef std::basic_string<char_type> string;
+    typedef typename rules::string_vector string_vector;
+    typedef typename rules::symbol symbol;
+    typedef typename rules::symbol_vector symbol_vector;
     typedef std::pair<std::size_t, typename rules::token_info::associativity>
-        token_info;
-    typedef std::map<token_info, string> token_map;
-    typedef std::pair<token_info, string> token_pair;
+        token_prec_assoc;
+    typedef typename rules::token_info token_info;
+    typedef typename rules::token_info_vector token_info_vector;
+    typedef std::map<token_prec_assoc, string> token_map;
+    typedef std::pair<token_prec_assoc, string> token_pair;
 
-    static void token(std::ostream &stream_)
+    static void empty(std::ostream &stream_)
     {
-        stream_ << "%token ";
+        stream_ << "%empty";
     }
 
-    static void token(std::wostream &stream_)
+    static void empty(std::wostream &stream_)
     {
-        stream_ << L"%token ";
+        stream_ << L"%empty";
     }
 
-    static void precedence(std::ostream &stream_)
+    static void left(std::ostream &stream_)
     {
-        stream_ << "%precedence ";
+        stream_ << "%left ";
     }
 
-    static void precedence(std::wostream &stream_)
+    static void left(std::wostream &stream_)
     {
-        stream_ << L"%precedence ";
+        stream_ << L"%left ";
     }
 
     static void nonassoc(std::ostream &stream_)
@@ -633,14 +259,14 @@ private:
         stream_ << L"%nonassoc ";
     }
 
-    static void left(std::ostream &stream_)
+    static void precedence(std::ostream &stream_)
     {
-        stream_ << "%left ";
+        stream_ << "%precedence ";
     }
 
-    static void left(std::wostream &stream_)
+    static void precedence(std::wostream &stream_)
     {
-        stream_ << L"%left ";
+        stream_ << L"%precedence ";
     }
 
     static void right(std::ostream &stream_)
@@ -663,76 +289,6 @@ private:
         stream_ << L"%start ";
     }
 
-    static void empty(std::ostream &stream_)
-    {
-        stream_ << "%empty";
-    }
-
-    static void empty(std::wostream &stream_)
-    {
-        stream_ << L"%empty";
-    }
-
-    static void first_follow(std::ostream &stream_)
-    {
-        stream_ << "First and Follow sets:\n\n";
-    }
-
-    static void first_follow(std::wostream &stream_)
-    {
-        stream_ << L"First and Follow sets:\n\n";
-    }
-
-    static void first(std::ostream &stream_)
-    {
-        stream_ << "FIRST(";
-    }
-
-    static void first(std::wostream &stream_)
-    {
-        stream_ << L"FIRST(";
-    }
-
-    static void follow(std::ostream &stream_)
-    {
-        stream_ << "FOLLOW(";
-    }
-
-    static void follow(std::wostream &stream_)
-    {
-        stream_ << L"FOLLOW(";
-    }
-
-    static void bracket_equals(std::ostream &stream_)
-    {
-        stream_ << ") = ";
-    }
-
-    static void bracket_equals(std::wostream &stream_)
-    {
-        stream_ << L") = ";
-    }
-
-    static void comma(std::ostream &stream_)
-    {
-        stream_ << ", ";
-    }
-
-    static void comma(std::wostream &stream_)
-    {
-        stream_ << L", ";
-    }
-
-    static void parse_table(std::ostream &stream_)
-    {
-        stream_ << "Parse Table:\n\n";
-    }
-
-    static void parse_table(std::wostream &stream_)
-    {
-        stream_ << L"Parse Table:\n\n";
-    }
-
     static void state(const std::size_t row_, std::ostream &stream_)
     {
         stream_ << "state " << row_ << '\n' << '\n';
@@ -743,64 +299,14 @@ private:
         stream_ << L"state " << row_ << L'\n' << L'\n';
     }
 
-    static void oerror(std::ostream &stream_)
+    static void token(std::ostream &stream_)
     {
-        stream_ << "error (nonassociative)";
+        stream_ << "%token ";
     }
 
-    static void oerror(std::wostream &stream_)
+    static void token(std::wostream &stream_)
     {
-        stream_ << L"error (nonassociative)";
-    }
-
-    static void oshift(std::ostream &stream_)
-    {
-        stream_ << "shift, and go to state ";
-    }
-
-    static void oshift(std::wostream &stream_)
-    {
-        stream_ << L"shift, and go to state ";
-    }
-
-    static void oreduce(std::ostream &stream_)
-    {
-        stream_ << "reduce using rule ";
-    }
-
-    static void oreduce(std::wostream &stream_)
-    {
-        stream_ << L"reduce using rule ";
-    }
-
-    static void ogoto(std::ostream &stream_)
-    {
-        stream_ << "go to state ";
-    }
-
-    static void ogoto(std::wostream &stream_)
-    {
-        stream_ << L"go to state ";
-    }
-
-    static void oaccept(std::ostream &stream_)
-    {
-        stream_ << "accept";
-    }
-
-    static void oaccept(std::wostream &stream_)
-    {
-        stream_ << L"accept";
-    }
-
-    static void dollar_default(std::ostream &stream_)
-    {
-        stream_ << "$default";
-    }
-
-    static void dollar_default(std::wostream &stream_)
-    {
-        stream_ << L"$default";
+        stream_ << L"%token ";
     }
 };
 

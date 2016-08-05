@@ -24,7 +24,7 @@ struct parser
         iter_type end;
 
         token() :
-            id(~0),
+            id(static_cast<std::size_t>(~0)),
             start(),
             end()
         {
