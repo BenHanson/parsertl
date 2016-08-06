@@ -378,21 +378,15 @@ public:
         }
     }
 
-    const string_size_t_map &non_terminals() const
+    void symbols(string_vector &vec_) const
     {
-        return _non_terminals;
+        terminals(vec_);
+        non_terminals(vec_);
     }
 
     std::size_t npos() const
     {
         return static_cast<std::size_t>(~0);
-    }
-
-    void copy_terminals(basic_rules &rhs_) const
-    {
-        rhs_._terminals = _terminals;
-        rhs_._tokens_info = _tokens_info;
-        rhs_._next_precedence = _next_precedence;
     }
 
 private:

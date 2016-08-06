@@ -18,17 +18,27 @@ template<typename rules>
 class basic_generator
 {
 public:
+    typedef typename rules::production production;
     typedef typename rules::symbol_vector symbol_vector;
 
     struct prod
     {
+        // Not owner
+        const production *_production;
         std::size_t _lhs;
         size_t_pair _lhs_indexes;
         symbol_vector _rhs;
         size_t_pair_vector _rhs_indexes;
 
+        prod() :
+            _production(0),
+            _lhs(static_cast<std::size_t>(~0))
+        {
+        }
+
         void swap(prod &rhs_)
         {
+            std::swap(_production, rhs_._production);
             std::swap(_lhs, rhs_._lhs);
             std::swap(_lhs_indexes, rhs_._lhs_indexes);
             _rhs.swap(rhs_._rhs);
@@ -44,22 +54,19 @@ public:
     {
         dfa dfa_;
         prod_deque new_grammar_;
+        std::size_t new_start_ = static_cast<std::size_t>(~0);
         rules new_rules_;
+        nt_info_vector new_nt_info_;
 
         rules_.validate();
         build_dfa(rules_, dfa_);
-        rewrite(rules_, dfa_, new_grammar_, new_rules_);
-
-        nt_info_vector new_nt_info_(new_rules_.nt_locations().size(),
-            nt_info(new_rules_.tokens_info().size()));
-
-        build_first_sets(new_rules_, new_nt_info_);
+        rewrite(rules_, dfa_, new_grammar_, new_start_, new_nt_info_);
+        build_first_sets(new_grammar_, new_nt_info_);
         // First add EOF to follow_set of start.
-        new_nt_info_[new_rules_.start()]._follow_set[0] = 1;
-        build_follow_sets(new_rules_, new_nt_info_);
+        new_nt_info_[new_start_]._follow_set[0] = 1;
+        build_follow_sets(new_grammar_, new_nt_info_);
         sm_.clear();
-        build_table(rules_, dfa_, new_grammar_, new_rules_, new_nt_info_, sm_,
-            warnings_);
+        build_table(rules_, dfa_, new_grammar_, new_nt_info_, sm_, warnings_);
         copy_rules(rules_, sm_);
     }
 
@@ -150,20 +157,153 @@ public:
         }
     }
 
+    static void rewrite(const rules &rules_, dfa &dfa_,
+        prod_deque &new_grammar_, std::size_t &new_start_,
+        nt_info_vector &new_nt_info_)
+    {
+        typedef std::pair<std::size_t, size_t_pair> trie;
+        typedef std::map<trie, std::size_t> trie_map;
+        const grammar &grammar_ = rules_.grammar();
+        string_vector terminals_;
+        string_vector non_terminals_;
+        const std::size_t start_ = rules_.start();
+        trie_map map_;
+
+        rules_.terminals(terminals_);
+        rules_.non_terminals(non_terminals_);
+
+        for (std::size_t sidx_ = 0, ssize_ = dfa_.size();
+            sidx_ != ssize_; ++sidx_)
+        {
+            const dfa_state &state_ = dfa_[sidx_];
+
+            for (std::size_t cidx_ = 0, csize_ = state_._closure.size();
+                cidx_ != csize_; ++cidx_)
+            {
+                const size_t_pair &pair_ = state_._closure[cidx_];
+
+                if (pair_.second != 0) continue;
+
+                const production &production_ = grammar_[pair_.first];
+                prod prod_;
+
+                prod_._production = &production_;
+
+                if (production_._lhs != start_)
+                {
+                    const std::size_t id_ = terminals_.size() +
+                        production_._lhs;
+
+                    prod_._lhs_indexes.first = sidx_;
+
+                    for (std::size_t tidx_ = 0,
+                        tsize_ = state_._transitions.size();
+                        tidx_ != tsize_; ++tidx_)
+                    {
+                        const size_t_pair &pr_ =
+                            state_._transitions[tidx_];
+
+                        if (pr_.first == id_)
+                        {
+                            prod_._lhs_indexes.second = pr_.second;
+                            break;
+                        }
+                    }
+                }
+
+                trie trie_(production_._lhs, prod_._lhs_indexes);
+                typename trie_map::const_iterator map_iter_ = map_.find(trie_);
+
+                if (map_iter_ == map_.end())
+                {
+                    prod_._lhs = map_.size();
+                    map_[trie_] = prod_._lhs;
+
+                    if (production_._lhs == start_)
+                    {
+                        new_start_ = prod_._lhs;
+                    }
+                }
+                else
+                {
+                    prod_._lhs = map_iter_->second;
+                }
+
+                std::size_t index_ = sidx_;
+
+                if (production_._rhs.empty())
+                {
+                    prod_._rhs_indexes.push_back(size_t_pair(sidx_, sidx_));
+                }
+
+                for (std::size_t ridx_ = 0, rsize_ = production_._rhs.size();
+                    ridx_ != rsize_; ++ridx_)
+                {
+                    const symbol &symbol_ = production_._rhs[ridx_];
+
+                    prod_._rhs_indexes.push_back(size_t_pair(index_, 0));
+
+                    for (std::size_t tidx_ = 0,
+                        tsize_ = dfa_[index_]._transitions.size();
+                        tidx_ != tsize_; ++tidx_)
+                    {
+                        const std::size_t id_ =
+                            symbol_._type == symbol::TERMINAL ?
+                            symbol_._id :
+                            terminals_.size() + symbol_._id;
+                        const size_t_pair &pr_ =
+                            dfa_[index_]._transitions[tidx_];
+
+                        if (pr_.first == id_)
+                        {
+                            index_ = pr_.second;
+                            break;
+                        }
+                    }
+
+                    prod_._rhs_indexes.back().second = index_;
+                    prod_._rhs.push_back(symbol_);
+
+                    if (symbol_._type == symbol::NON_TERMINAL)
+                    {
+                        symbol &rhs_symbol_ = prod_._rhs.back();
+
+                        trie_ = trie(symbol_._id, prod_._rhs_indexes.back());
+                        map_iter_ = map_.find(trie_);
+
+                        if (map_iter_ == map_.end())
+                        {
+                            rhs_symbol_._id = map_.size();
+                            map_[trie_] = rhs_symbol_._id;
+                        }
+                        else
+                        {
+                            rhs_symbol_._id = map_iter_->second;
+                        }
+                    }
+                }
+
+                new_grammar_.push_back(prod());
+                new_grammar_.back().swap(prod_);
+            }
+        }
+
+        new_nt_info_.assign(map_.size(), nt_info(rules_.tokens_info().size()));
+    }
+
     // http://www.sqlite.org/src/artifact?ci=trunk&filename=tool/lemon.c
     // FindFirstSets()
-    static void build_first_sets(const rules &rules_, nt_info_vector &nt_info_)
+    static void build_first_sets(const prod_deque &grammar_,
+        nt_info_vector &nt_info_)
     {
         bool progress_ = true;
-        const grammar &grammar_ = rules_.grammar();
-        const std::size_t terminals_ = rules_.tokens_info().size();
 
         // First compute all lambdas
         do
         {
             progress_ = 0;
 
-            for (typename grammar::const_iterator iter_ = grammar_.begin(),
+            for (typename prod_deque::const_iterator iter_ = grammar_.begin(),
                 end_ = grammar_.end(); iter_ != end_; ++iter_)
             {
                 if (nt_info_[iter_->_lhs]._nullable) continue;
@@ -195,7 +335,7 @@ public:
         {
             progress_ = 0;
 
-            for (typename grammar::const_iterator iter_ = grammar_.begin(),
+            for (typename prod_deque::const_iterator iter_ = grammar_.begin(),
                 end_ = grammar_.end(); iter_ != end_; ++iter_)
             {
                 nt_info &lhs_info_ = nt_info_[iter_->_lhs];
@@ -228,24 +368,22 @@ public:
         } while (progress_);
     }
 
-    static void build_follow_sets(const rules &rules_, nt_info_vector &nt_info_)
+    static void build_follow_sets(const prod_deque &grammar_,
+        nt_info_vector &nt_info_)
     {
-        const grammar &grammar_ = rules_.grammar();
-
         for (;;)
         {
             bool changes_ = false;
-            typename grammar::const_iterator iter_ = grammar_.begin();
-            typename grammar::const_iterator end_ = grammar_.end();
+            typename prod_deque::const_iterator iter_ = grammar_.begin();
+            typename prod_deque::const_iterator end_ = grammar_.end();
 
             for (; iter_ != end_; ++iter_)
             {
-                const production &production_ = *iter_;
-                const std::size_t lhs_id_ = production_._lhs;
+                const std::size_t lhs_id_ = iter_->_lhs;
                 typename symbol_vector::const_iterator rhs_iter_ =
-                    production_._rhs.begin();
+                    iter_->_rhs.begin();
                 typename symbol_vector::const_iterator rhs_end_ =
-                    production_._rhs.end();
+                    iter_->_rhs.end();
 
                 for (; rhs_iter_ != rhs_end_; ++rhs_iter_)
                 {
@@ -254,7 +392,7 @@ public:
                         typename symbol_vector::const_iterator next_iter_ =
                             rhs_iter_ + 1;
                         const std::size_t rhs_id_ = rhs_iter_->_id;
-                        nt_info *lstate_iter_ = &nt_info_[rhs_id_];
+                        nt_info *lstate_ = &nt_info_[rhs_id_];
                         bool nullable_ = next_iter_ == rhs_end_;
 
                         if (next_iter_ != rhs_end_)
@@ -264,24 +402,22 @@ public:
                                 const std::size_t id_ = next_iter_->_id;
 
                                 // Just add terminal.
-                                changes_ |=
-                                    set_add(lstate_iter_->_follow_set, id_);
+                                changes_ |= set_add(lstate_->_follow_set, id_);
                             }
                             else
                             {
                                 // If there is a production A -> aBb
                                 // then everything in FIRST(b) is
                                 // placed in FOLLOW(B).
-                                nt_info *rstate_iter_ =
+                                const nt_info *rstate_ =
                                     &nt_info_[next_iter_->_id];
 
-                                changes_ |= set_union
-                                    (lstate_iter_->_follow_set,
-                                        rstate_iter_->_first_set);
+                                changes_ |= set_union(lstate_->_follow_set,
+                                    rstate_->_first_set);
                                 ++next_iter_;
 
                                 // If nullable, keep going
-                                if (rstate_iter_->_nullable)
+                                if (rstate_->_nullable)
                                 {
                                     for (; next_iter_ != rhs_end_; ++next_iter_)
                                     {
@@ -292,22 +428,21 @@ public:
                                             symbol::TERMINAL)
                                         {
                                             next_id_ = next_iter_->_id;
-
                                             // Just add terminal.
                                             changes_ |= set_add
-                                                (lstate_iter_->_follow_set,
+                                                (lstate_->_follow_set,
                                                     next_id_);
                                             break;
                                         }
                                         else
                                         {
                                             next_id_ = next_iter_->_id;
-                                            rstate_iter_ = &nt_info_[next_id_];
+                                            rstate_ = &nt_info_[next_id_];
                                             changes_ |= set_union
-                                                (lstate_iter_->_follow_set,
-                                                    rstate_iter_->_first_set);
+                                                (lstate_->_follow_set,
+                                                    rstate_->_first_set);
 
-                                            if (!rstate_iter_->_nullable)
+                                            if (!rstate_->_nullable)
                                             {
                                                 break;
                                             }
@@ -323,11 +458,10 @@ public:
                         {
                             // If there is a production A -> aB
                             // then everything in FOLLOW(A) is in FOLLOW(B).
-                            nt_info *rstate_iter_ = &nt_info_[lhs_id_];
+                            nt_info *rstate_ = &nt_info_[lhs_id_];
 
-                            changes_ |= set_union
-                                (lstate_iter_->_follow_set,
-                                    rstate_iter_->_follow_set);
+                            changes_ |= set_union(lstate_->_follow_set,
+                                    rstate_->_follow_set);
                         }
                     }
                 }
@@ -337,166 +471,11 @@ public:
         }
     }
 
-    static void rewrite(const rules &rules_, dfa &dfa_,
-        prod_deque &new_grammar_, rules &new_rules_)
-    {
-        const grammar &grammar_ = rules_.grammar();
-        string_vector terminals_;
-        string_vector non_terminals_;
-        string start_;
-
-        rules_.copy_terminals(new_rules_);
-        rules_.terminals(terminals_);
-        rules_.non_terminals(non_terminals_);
-        start_ = non_terminals_[rules_.start()];
-
-        for (std::size_t sidx_ = 0, ssize_ = dfa_.size();
-            sidx_ != ssize_; ++sidx_)
-        {
-            const dfa_state &state_ = dfa_[sidx_];
-
-            for (std::size_t cidx_ = 0, csize_ = state_._closure.size();
-                cidx_ != csize_; ++cidx_)
-            {
-                const size_t_pair &pair_ = state_._closure[cidx_];
-
-                if (pair_.second != 0) continue;
-
-                const production &production_ = grammar_[pair_.first];
-                std::string lhs_ = non_terminals_[production_._lhs];
-                std::string rhs_;
-                prod prod_;
-
-                prod_._lhs = production_._lhs;
-                prod_._rhs = production_._rhs;
-
-                if (lhs_ != start_)
-                {
-                    ostringstream ss_;
-                    const std::size_t id_ = production_._lhs +
-                        terminals_.size();
-
-                    ss_ << '_' << sidx_ << '_';
-                    prod_._lhs_indexes.first = sidx_;
-
-                    for (std::size_t tidx_ = 0,
-                        tsize_ = state_._transitions.size();
-                        tidx_ != tsize_; ++tidx_)
-                    {
-                        const size_t_pair &pr_ =
-                            state_._transitions[tidx_];
-
-                        if (pr_.first == id_)
-                        {
-                            ss_ << pr_.second;
-                            prod_._lhs_indexes.second = pr_.second;
-                            break;
-                        }
-                    }
-
-                    lhs_ += ss_.str();
-                }
-
-                std::size_t index_ = sidx_;
-
-                if (production_._rhs.empty())
-                {
-                    prod_._rhs_indexes.push_back(size_t_pair(sidx_, sidx_));
-                }
-
-                for (std::size_t ridx_ = 0, rsize_ = production_._rhs.size();
-                    ridx_ != rsize_; ++ridx_)
-                {
-                    const symbol &symbol_ = production_._rhs[ridx_];
-
-                    prod_._rhs_indexes.push_back(size_t_pair(index_, 0));
-
-                    if (ridx_ > 0) rhs_ += ' ';
-
-                    if (symbol_._type == symbol::TERMINAL ||
-                        symbol_._id == rules_.start())
-                    {
-                        const string &str_ =
-                            symbol_._type == symbol::TERMINAL ?
-                            terminals_[symbol_._id] :
-                            non_terminals_[symbol_._id];
-
-                        if (str_[0] != '$')
-                        {
-                            rhs_ += str_;
-                        }
-
-                        for (std::size_t tidx_ = 0,
-                            tsize_ = dfa_[index_]._transitions.size();
-                            tidx_ != tsize_; ++tidx_)
-                        {
-                            const std::size_t id_ = symbol_._id +
-                                (symbol_._type == symbol::TERMINAL ? 0 :
-                                    terminals_.size());
-                            const size_t_pair &pr_ =
-                                dfa_[index_]._transitions[tidx_];
-
-                            if (pr_.first == id_)
-                            {
-                                index_ = pr_.second;
-                                break;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        ostringstream ss_;
-
-                        rhs_ += non_terminals_[symbol_._id] + '_';
-                        ss_ << index_ << '_';
-
-                        for (std::size_t tidx_ = 0,
-                            tsize_ = dfa_[index_]._transitions.size();
-                            tidx_ != tsize_; ++tidx_)
-                        {
-                            const std::size_t id_ = symbol_._id +
-                                (symbol_._type == symbol::TERMINAL ? 0 :
-                                    terminals_.size());
-                            const size_t_pair &pr_ =
-                                dfa_[index_]._transitions[tidx_];
-
-                            if (pr_.first == id_)
-                            {
-                                index_ = pr_.second;
-                                ss_ << index_;
-                                break;
-                            }
-                        }
-
-                        rhs_ += ss_.str();
-                    }
-
-                    prod_._rhs_indexes.back().second = index_;
-                }
-
-                if (lhs_[0] != '$')
-                {
-                    new_grammar_.push_back(prod());
-                    new_grammar_.back().swap(prod_);
-                    new_rules_.push(lhs_.c_str(), rhs_.c_str());
-                }
-            }
-        }
-
-        if (start_[0] != '$')
-        {
-            new_rules_.start(start_.c_str());
-        }
-
-        new_rules_.validate();
-    }
-
 private:
     typedef typename rules::char_type char_type;
     typedef std::deque<char_vector> char_vector_deque;
     typedef typename rules::production_deque grammar;
     typedef std::basic_ostringstream<char_type> ostringstream;
-    typedef typename rules::production production;
     typedef std::vector<std::size_t> size_t_vector;
     typedef std::map<std::size_t, size_t_vector> hash_map;
     typedef typename rules::string_size_t_map string_size_t_map;
@@ -506,9 +485,8 @@ private:
     typedef typename rules::token_info_vector token_info_vector;
 
     static void build_table(const rules &rules_, const dfa &dfa_,
-        const prod_deque &new_grammar_, const rules &new_rules_,
-        const nt_info_vector &new_nt_info_, state_machine &sm_,
-        std::string *warnings_)
+        const prod_deque &new_grammar_, const nt_info_vector &new_nt_info_,
+        state_machine &sm_, std::string *warnings_)
     {
         const grammar &grammar_ = rules_.grammar();
         const std::size_t start_ = rules_.start();
@@ -517,10 +495,8 @@ private:
         string_vector symbols_;
         const std::size_t columns_ = terminals_ + non_terminals_;
         const std::size_t dfa_size_ = dfa_.size();
-        const string_size_t_map &new_nt_map_ = new_rules_.non_terminals();
 
-        rules_.terminals(symbols_);
-        rules_.non_terminals(symbols_);
+        rules_.symbols(symbols_);
         sm_._columns = columns_;
         sm_._rows = dfa_.size();
         sm_._table.resize(sm_._columns * sm_._rows);
@@ -564,28 +540,19 @@ private:
                 if (production_._rhs.size() == iter_->second)
                 {
                     char_vector follow_set_(terminals_, 0);
+                    std::size_t idx_ = 0;
 
                     // config is reduction
                     for (typename prod_deque::const_iterator p_iter_ =
                         new_grammar_.begin(), p_end_ = new_grammar_.end();
-                        p_iter_ != p_end_; ++p_iter_)
+                        p_iter_ != p_end_; ++p_iter_, ++idx_)
                     {
-                        if (production_._lhs == p_iter_->_lhs &&
-                            production_._rhs == p_iter_->_rhs &&
+                        if (production_._lhs == p_iter_->_production->_lhs &&
+                            production_._rhs == p_iter_->_production->_rhs &&
                             index_ == p_iter_->_rhs_indexes.back().second)
                         {
-                            ostringstream lhs_;
-                            std::size_t lhs_id_ = static_cast<std::size_t>(~0);
+                            const std::size_t lhs_id_ = p_iter_->_lhs;
 
-                            lhs_ << symbols_[terminals_ + production_._lhs];
-
-                            if (production_._lhs != start_)
-                            {
-                                lhs_ << '_' << p_iter_->_lhs_indexes.first <<
-                                    '_' << p_iter_->_lhs_indexes.second;
-                            }
-
-                            lhs_id_ = new_nt_map_.find(lhs_.str())->second;
                             set_union(follow_set_,
                                 new_nt_info_[lhs_id_]._follow_set);
                         }

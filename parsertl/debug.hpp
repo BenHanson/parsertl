@@ -29,8 +29,7 @@ public:
         std::set<std::size_t> seen_;
         token_map map_;
 
-        rules_.terminals(symbols_);
-        rules_.non_terminals(symbols_);
+        rules_.symbols(symbols_);
 
         // Skip EOI token
         for (std::size_t idx_ = 1, size_ = tokens_info_.size();
@@ -157,8 +156,7 @@ public:
         const std::size_t terminals_ = rules_.tokens_info().size();
         string_vector symbols_;
 
-        rules_.terminals(symbols_);
-        rules_.non_terminals(symbols_);
+        rules_.symbols(symbols_);
 
         for (std::size_t idx_ = 0, dfa_size_ = dfa_.size();
             idx_ < dfa_size_; ++idx_)
