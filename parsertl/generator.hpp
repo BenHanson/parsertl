@@ -540,12 +540,11 @@ private:
                 if (production_._rhs.size() == iter_->second)
                 {
                     char_vector follow_set_(terminals_, 0);
-                    std::size_t idx_ = 0;
 
                     // config is reduction
                     for (typename prod_deque::const_iterator p_iter_ =
                         new_grammar_.begin(), p_end_ = new_grammar_.end();
-                        p_iter_ != p_end_; ++p_iter_, ++idx_)
+                        p_iter_ != p_end_; ++p_iter_)
                     {
                         if (production_._lhs == p_iter_->_production->_lhs &&
                             production_._rhs == p_iter_->_production->_rhs &&
