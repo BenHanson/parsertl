@@ -240,19 +240,19 @@ public:
                     ridx_ != rsize_; ++ridx_)
                 {
                     const symbol &symbol_ = production_._rhs[ridx_];
+                    const dfa_state &st_ = dfa_[index_];
 
                     prod_._rhs_indexes.push_back(size_t_pair(index_, 0));
 
                     for (std::size_t tidx_ = 0,
-                        tsize_ = dfa_[index_]._transitions.size();
+                        tsize_ = st_._transitions.size();
                         tidx_ != tsize_; ++tidx_)
                     {
                         const std::size_t id_ =
                             symbol_._type == symbol::TERMINAL ?
                             symbol_._id :
                             terminals_.size() + symbol_._id;
-                        const size_t_pair &pr_ =
-                            dfa_[index_]._transitions[tidx_];
+                        const size_t_pair &pr_ = st_._transitions[tidx_];
 
                         if (pr_.first == id_)
                         {
@@ -343,20 +343,21 @@ public:
 
                 for (std::size_t i_ = 0; i_ < rhs_size_; i_++)
                 {
-                    const symbol &s2_ = iter_->_rhs[i_];
+                    const symbol &symbol_ = iter_->_rhs[i_];
 
-                    if (s2_._type == symbol::TERMINAL)
+                    if (symbol_._type == symbol::TERMINAL)
                     {
-                        progress_ |= set_add(lhs_info_._first_set, s2_._id);
+                        progress_ |=
+                            set_add(lhs_info_._first_set, symbol_._id);
                         break;
                     }
-                    else if (iter_->_lhs == s2_._id)
+                    else if (iter_->_lhs == symbol_._id)
                     {
                         if (!lhs_info_._nullable) break;
                     }
                     else
                     {
-                        nt_info &rhs_info_ = nt_info_[s2_._id];
+                        nt_info &rhs_info_ = nt_info_[symbol_._id];
 
                         progress_ |= set_union(lhs_info_._first_set,
                             rhs_info_._first_set);
@@ -379,7 +380,6 @@ public:
 
             for (; iter_ != end_; ++iter_)
             {
-                const std::size_t lhs_id_ = iter_->_lhs;
                 typename symbol_vector::const_iterator rhs_iter_ =
                     iter_->_rhs.begin();
                 typename symbol_vector::const_iterator rhs_end_ =
@@ -391,8 +391,7 @@ public:
                     {
                         typename symbol_vector::const_iterator next_iter_ =
                             rhs_iter_ + 1;
-                        const std::size_t rhs_id_ = rhs_iter_->_id;
-                        nt_info *lstate_ = &nt_info_[rhs_id_];
+                        nt_info &lhs_info_ = nt_info_[rhs_iter_->_id];
                         bool nullable_ = next_iter_ == rhs_end_;
 
                         if (next_iter_ != rhs_end_)
@@ -402,22 +401,23 @@ public:
                                 const std::size_t id_ = next_iter_->_id;
 
                                 // Just add terminal.
-                                changes_ |= set_add(lstate_->_follow_set, id_);
+                                changes_ |= set_add
+                                    (lhs_info_._follow_set, id_);
                             }
                             else
                             {
                                 // If there is a production A -> aBb
                                 // then everything in FIRST(b) is
                                 // placed in FOLLOW(B).
-                                const nt_info *rstate_ =
+                                const nt_info *rhs_info_ =
                                     &nt_info_[next_iter_->_id];
 
-                                changes_ |= set_union(lstate_->_follow_set,
-                                    rstate_->_first_set);
+                                changes_ |= set_union(lhs_info_._follow_set,
+                                    rhs_info_->_first_set);
                                 ++next_iter_;
 
                                 // If nullable, keep going
-                                if (rstate_->_nullable)
+                                if (rhs_info_->_nullable)
                                 {
                                     for (; next_iter_ != rhs_end_; ++next_iter_)
                                     {
@@ -430,19 +430,19 @@ public:
                                             next_id_ = next_iter_->_id;
                                             // Just add terminal.
                                             changes_ |= set_add
-                                                (lstate_->_follow_set,
+                                                (lhs_info_._follow_set,
                                                     next_id_);
                                             break;
                                         }
                                         else
                                         {
                                             next_id_ = next_iter_->_id;
-                                            rstate_ = &nt_info_[next_id_];
+                                            rhs_info_ = &nt_info_[next_id_];
                                             changes_ |= set_union
-                                                (lstate_->_follow_set,
-                                                    rstate_->_first_set);
+                                                (lhs_info_._follow_set,
+                                                    rhs_info_->_first_set);
 
-                                            if (!rstate_->_nullable)
+                                            if (!rhs_info_->_nullable)
                                             {
                                                 break;
                                             }
@@ -458,10 +458,10 @@ public:
                         {
                             // If there is a production A -> aB
                             // then everything in FOLLOW(A) is in FOLLOW(B).
-                            nt_info *rstate_ = &nt_info_[lhs_id_];
+                            const nt_info &rhs_info_ = nt_info_[iter_->_lhs];
 
-                            changes_ |= set_union(lstate_->_follow_set,
-                                    rstate_->_follow_set);
+                            changes_ |= set_union(lhs_info_._follow_set,
+                                rhs_info_._follow_set);
                         }
                     }
                 }
@@ -494,22 +494,23 @@ private:
         const std::size_t non_terminals_ = rules_.nt_locations().size();
         string_vector symbols_;
         const std::size_t columns_ = terminals_ + non_terminals_;
-        const std::size_t dfa_size_ = dfa_.size();
+        std::size_t index_ = 0;
 
         rules_.symbols(symbols_);
         sm_._columns = columns_;
         sm_._rows = dfa_.size();
         sm_._table.resize(sm_._columns * sm_._rows);
 
-        for (std::size_t index_ = 0; index_ < dfa_size_; ++index_)
+        for (typename dfa::const_iterator iter_ = dfa_.begin(),
+            end_ = dfa_.end(); iter_ != end_; ++iter_, ++index_)
         {
             // shift and gotos
-            for (typename size_t_pair_vector::const_iterator iter_ =
-                dfa_[index_]._transitions.begin(),
-                end_ = dfa_[index_]._transitions.end();
-                iter_ != end_; ++iter_)
+            for (typename size_t_pair_vector::const_iterator titer_ =
+                iter_->_transitions.begin(),
+                tend_ = iter_->_transitions.end();
+                titer_ != tend_; ++titer_)
             {
-                const std::size_t id_ = iter_->first;
+                const std::size_t id_ = titer_->first;
                 typename state_machine::entry &lhs_ =
                     sm_._table[index_ * columns_ + id_];
                 typename state_machine::entry rhs_;
@@ -525,32 +526,32 @@ private:
                     rhs_._action = go_to;
                 }
 
-                rhs_._param = iter_->second;
-                fill_entry(rules_, dfa_[index_]._closure, symbols_,
+                rhs_._param = titer_->second;
+                fill_entry(rules_, iter_->_closure, symbols_,
                     lhs_, id_, rhs_, warnings_);
             }
 
             // reductions
-            for (typename size_t_pair_vector::const_iterator iter_ =
-                dfa_[index_]._closure.begin(),
-                end_ = dfa_[index_]._closure.end(); iter_ != end_; ++iter_)
+            for (typename size_t_pair_vector::const_iterator citer_ =
+                iter_->_closure.begin(),
+                cend_ = iter_->_closure.end(); citer_ != cend_; ++citer_)
             {
-                const production &production_ = grammar_[iter_->first];
+                const production &production_ = grammar_[citer_->first];
 
-                if (production_._rhs.size() == iter_->second)
+                if (production_._rhs.size() == citer_->second)
                 {
                     char_vector follow_set_(terminals_, 0);
 
                     // config is reduction
-                    for (typename prod_deque::const_iterator p_iter_ =
-                        new_grammar_.begin(), p_end_ = new_grammar_.end();
-                        p_iter_ != p_end_; ++p_iter_)
+                    for (typename prod_deque::const_iterator piter_ =
+                        new_grammar_.begin(), pend_ = new_grammar_.end();
+                        piter_ != pend_; ++piter_)
                     {
-                        if (production_._lhs == p_iter_->_production->_lhs &&
-                            production_._rhs == p_iter_->_production->_rhs &&
-                            index_ == p_iter_->_rhs_indexes.back().second)
+                        if (production_._lhs == piter_->_production->_lhs &&
+                            production_._rhs == piter_->_production->_rhs &&
+                            index_ == piter_->_rhs_indexes.back().second)
                         {
-                            const std::size_t lhs_id_ = p_iter_->_lhs;
+                            const std::size_t lhs_id_ = piter_->_lhs;
 
                             set_union(follow_set_,
                                 new_nt_info_[lhs_id_]._follow_set);
@@ -572,7 +573,7 @@ private:
                             rhs_._action = accept;
                         }
 
-                        fill_entry(rules_, dfa_[index_]._closure, symbols_,
+                        fill_entry(rules_, iter_->_closure, symbols_,
                             lhs_, i_, rhs_, warnings_);
                     }
                 }
@@ -636,17 +637,17 @@ private:
     {
         const std::size_t size_ = lhs_.size();
         bool progress_ = false;
-        char *s1_ = &lhs_.front();
-        const char *s2_ = &rhs_.front();
+        char *lhs_ptr_ = &lhs_.front();
+        const char *rhs_ptr_ = &rhs_.front();
 
         for (std::size_t i_ = 0; i_ < size_; i_++)
         {
-            if (s2_[i_] == 0) continue;
+            if (rhs_ptr_[i_] == 0) continue;
 
-            if (s1_[i_] == 0)
+            if (lhs_ptr_[i_] == 0)
             {
                 progress_ = true;
-                s1_[i_] = 1;
+                lhs_ptr_[i_] = 1;
             }
         }
 
