@@ -233,7 +233,7 @@ struct parser
             case shift:
                 stack.push_back(entry._param);
                 productions.push_back
-                    (token(iter_->id, iter_->start, iter_->end));
+                    (token(iter_->id, iter_->first, iter_->second));
 
                 if (token_id != 0)
                 {
@@ -268,7 +268,7 @@ struct parser
                 }
                 else
                 {
-                    token_.start = token_.end = iter_->start;
+                    token_.start = token_.end = iter_->first;
                 }
 
                 token_id = sm._rules[entry._param].first;
