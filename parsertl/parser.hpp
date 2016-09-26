@@ -195,7 +195,7 @@ struct parser
                 }
                 else
                 {
-                    token_.start = token_.end = iter_->start;
+                    token_.start = token_.end = iter_->first;
                 }
 
                 token_id = sm._rules[entry._param].first;
