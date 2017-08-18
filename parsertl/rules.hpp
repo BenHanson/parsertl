@@ -67,7 +67,7 @@ public:
     struct production
     {
         std::size_t _lhs;
-        symbol_vector _rhs;
+        std::pair<symbol_vector, string> _rhs;
         std::size_t _precedence;
         std::size_t _index;
         std::size_t _next_lhs;
@@ -83,7 +83,8 @@ public:
         void clear()
         {
             _lhs = static_cast<std::size_t>(~0);
-            _rhs.clear();
+            _rhs.first.clear();
+            _rhs.second.clear();
             _precedence = 0;
             _index = static_cast<std::size_t>(~0);
             _next_lhs = static_cast<std::size_t>(~0);
@@ -269,14 +270,14 @@ public:
         // Validate start rule
         if (start_ >= _nt_locations.size() ||
             _grammar[_nt_locations[start_]._first_production].
-                _rhs.size() != 1)
+                _rhs.first.size() != 1)
         {
             static char_type accept_ [] =
                 { '$', 'a', 'c', 'c', 'e', 'p', 't', 0 };
             string rhs_ = _start;
 
             push_production(accept_, rhs_);
-            _grammar.back()._rhs.push_back
+            _grammar.back()._rhs.first.push_back
                 (symbol(symbol::TERMINAL, insert_terminal(string(1, '$'))));
             _start = accept_;
         }
@@ -287,16 +288,16 @@ public:
             typename production_deque::const_iterator end_ =
                 _grammar.end();
 
-            _grammar[_nt_locations[start_]._first_production]._rhs.
+            _grammar[_nt_locations[start_]._first_production]._rhs.first.
                 push_back(symbol(symbol::TERMINAL,
                     insert_terminal(string(1, '$'))));
 
             for (; iter_ != end_; ++iter_)
             {
                 typename symbol_vector::const_iterator sym_iter_ =
-                    iter_->_rhs.begin();
+                    iter_->_rhs.first.begin();
                 typename symbol_vector::const_iterator sym_end_ =
-                    iter_->_rhs.end();
+                    iter_->_rhs.first.end();
 
                 for (; sym_iter_ != sym_end_; ++sym_iter_)
                 {
@@ -547,7 +548,8 @@ private:
                 token_info &token_info_ = info(id_);
 
                 production_._precedence = token_info_._precedence;
-                production_._rhs.push_back(symbol(symbol::TERMINAL, id_));
+                production_._rhs.first.push_back(symbol(symbol::
+                    TERMINAL, id_));
                 break;
             }
             case SYMBOL:
@@ -562,8 +564,8 @@ private:
 
                     // NON_TERMINAL
                     location(id_);
-                    production_._rhs.push_back
-                    (symbol(symbol::NON_TERMINAL, id_));
+                    production_._rhs.first.push_back(symbol(symbol::
+                        NON_TERMINAL, id_));
                 }
                 else
                 {
@@ -571,7 +573,8 @@ private:
                     token_info &token_info_ = info(id_);
 
                     production_._precedence = token_info_._precedence;
-                    production_._rhs.push_back(symbol(symbol::TERMINAL, id_));
+                    production_._rhs.first.push_back(symbol(symbol::
+                        TERMINAL, id_));
                 }
 
                 break;
@@ -592,6 +595,7 @@ private:
                 }
 
                 production_._precedence = info(id_)._precedence;
+                production_._rhs.second = token_;
                 break;
             }
             case OR:

@@ -99,7 +99,7 @@ public:
 
                 while (index_ != ~0)
                 {
-                    if (lhs_iter_->_rhs.empty())
+                    if (lhs_iter_->_rhs.first.empty())
                     {
                         stream_ << ' ';
                         empty(stream_);
@@ -107,9 +107,9 @@ public:
                     else
                     {
                         typename symbol_vector::const_iterator rhs_iter_ =
-                            lhs_iter_->_rhs.begin();
+                            lhs_iter_->_rhs.first.begin();
                         typename symbol_vector::const_iterator rhs_end_ =
-                            lhs_iter_->_rhs.end();
+                            lhs_iter_->_rhs.first.end();
 
                         for (; rhs_iter_ != rhs_end_; ++rhs_iter_)
                         {
@@ -118,8 +118,19 @@ public:
                                 rhs_iter_->_id :
                                 terminals_ + rhs_iter_->_id;
 
-                            stream_ << ' ' << symbols_[id_];
+                            // Don't dump '$'
+                            if (id_ > 0)
+                            {
+                                stream_ << ' ' << symbols_[id_];
+                            }
                         }
+                    }
+
+                    if (!lhs_iter_->_rhs.second.empty())
+                    {
+                        stream_ << ' ';
+                        prec(stream_);
+                        stream_ << lhs_iter_->_rhs.second;
                     }
 
                     index_ = lhs_iter_->_next_lhs;
@@ -255,6 +266,16 @@ private:
     static void nonassoc(std::wostream &stream_)
     {
         stream_ << L"%nonassoc ";
+    }
+
+    static void prec(std::ostream &stream_)
+    {
+        stream_ << "%prec ";
+    }
+
+    static void prec(std::wostream &stream_)
+    {
+        stream_ << L"%prec ";
     }
 
     static void precedence(std::ostream &stream_)
