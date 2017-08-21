@@ -768,8 +768,6 @@ private:
             typename token_info::associativity lhs_assoc_ =
                 token_info::token;
             std::size_t rhs_prec_ = 0;
-            typename token_info::associativity rhs_assoc_ =
-                token_info::token;
             const token_info *iter_ = &tokens_info_[id_];
 
             if (lhs_.action == shift)
@@ -785,7 +783,6 @@ private:
             if (rhs_.action == shift)
             {
                 rhs_prec_ = iter_->_precedence;
-                rhs_assoc_ = iter_->_associativity;
             }
             else if (rhs_.action == reduce)
             {
