@@ -472,13 +472,9 @@ public:
     }
 
 private:
-    typedef typename rules::char_type char_type;
-    typedef std::deque<char_vector> char_vector_deque;
     typedef typename rules::production_deque grammar;
-    typedef std::basic_ostringstream<char_type> ostringstream;
     typedef std::vector<std::size_t> size_t_vector;
     typedef std::map<std::size_t, size_t_vector> hash_map;
-    typedef typename rules::string_size_t_map string_size_t_map;
     typedef typename rules::string_vector string_vector;
     typedef typename rules::symbol symbol;
     typedef typename rules::token_info token_info;
