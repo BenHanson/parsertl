@@ -6,6 +6,7 @@
 #ifndef PARSERTL_STATE_MACHINE_HPP
 #define PARSERTL_STATE_MACHINE_HPP
 
+#include "../../lexertl/lexertl/compile_assert.hpp"
 #include "enums.hpp"
 #include <deque>
 #include <map>
@@ -13,12 +14,17 @@
 
 namespace parsertl
 {
-struct state_machine
+template<typename id_type>
+struct basic_state_machine
 {
+    // If you get a compile error here you have
+    // failed to define an unsigned id type.
+    lexertl::compile_assert<(static_cast<id_type>(~0) > 0)> _valid_id_type;
+
     struct entry
     {
         eaction action;
-        std::size_t param;
+        id_type param;
 
         entry() :
             action(error),
@@ -26,7 +32,7 @@ struct state_machine
         {
         }
 
-        entry(const eaction action_, const std::size_t param_) :
+        entry(const eaction action_, const id_type param_) :
             action(action_),
             param(param_)
         {
@@ -40,16 +46,16 @@ struct state_machine
     };
 
     typedef std::vector<entry> table;
-    typedef std::vector<std::size_t> size_t_vector;
-    typedef std::pair<std::size_t, size_t_vector> size_t_size_t_pair;
-    typedef std::deque<size_t_size_t_pair> rules;
+    typedef std::vector<id_type> id_type_vector;
+    typedef std::pair<id_type, id_type_vector> id_type_pair;
+    typedef std::deque<id_type_pair> rules;
 
     table _table;
     std::size_t _columns;
     std::size_t _rows;
     rules _rules;
 
-    state_machine() :
+    basic_state_machine() :
         _columns(0),
         _rows(0)
     {
@@ -67,6 +73,8 @@ struct state_machine
         return _table.empty();
     }
 };
+
+typedef basic_state_machine<std::size_t> state_machine;
 }
 
 #endif
