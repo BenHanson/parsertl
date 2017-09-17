@@ -13,7 +13,7 @@
 
 namespace parsertl
 {
-template<typename T>
+template<typename T, typename id_type = std::size_t>
 class basic_rules
 {
 public:
@@ -33,8 +33,8 @@ public:
 
     typedef std::vector<nt_location> nt_location_vector;
     typedef std::basic_string<char_type> string;
-    typedef std::map<string, std::size_t> string_size_t_map;
-    typedef std::pair<string, std::size_t> string_size_t_pair;
+    typedef std::map<string, id_type> string_id_type_map;
+    typedef std::pair<string, id_type> string_id_type_pair;
     typedef std::vector<string> string_vector;
 
     struct symbol
@@ -204,9 +204,9 @@ public:
         return _grammar.size() - 1;
     }
 
-    std::size_t token_id(const char_type *name_) const
+    id_type token_id(const char_type *name_) const
     {
-        typename string_size_t_map::const_iterator iter_ =
+        typename string_id_type_map::const_iterator iter_ =
             _terminals.find(name_);
 
         if (iter_ == _terminals.end())
@@ -255,7 +255,7 @@ public:
         }
         else
         {
-            typename string_size_t_map::const_iterator iter_ =
+            typename string_id_type_map::const_iterator iter_ =
                 _non_terminals.find(_start);
 
             if (iter_ != _non_terminals.end())
@@ -268,7 +268,7 @@ public:
         }
 
         // Validate start rule
- /*       if (start_ >= _nt_locations.size() ||
+/*        if (start_ >= _nt_locations.size() ||
             _grammar[_nt_locations[start_]._first_production].
                 _rhs.first.size() != 1)*/
         {
@@ -350,9 +350,9 @@ public:
 
     void terminals(string_vector &vec_) const
     {
-        typename string_size_t_map::const_iterator iter_ =
+        typename string_id_type_map::const_iterator iter_ =
             _terminals.begin();
-        typename string_size_t_map::const_iterator end_ =
+        typename string_id_type_map::const_iterator end_ =
             _terminals.end();
 
         vec_.resize(_terminals.size());
@@ -366,9 +366,9 @@ public:
     void non_terminals(string_vector &vec_) const
     {
         const std::size_t size_ = vec_.size();
-        typename string_size_t_map::const_iterator iter_ =
+        typename string_id_type_map::const_iterator iter_ =
             _non_terminals.begin();
-        typename string_size_t_map::const_iterator end_ =
+        typename string_id_type_map::const_iterator end_ =
             _non_terminals.end();
 
         vec_.resize(size_ + _non_terminals.size());
@@ -405,9 +405,9 @@ private:
     std::size_t _next_precedence;
     lexer_state_machine _rule_lexer;
     lexer_state_machine _token_lexer;
-    string_size_t_map _terminals;
+    string_id_type_map _terminals;
     token_info_vector _tokens_info;
-    string_size_t_map _non_terminals;
+    string_id_type_map _non_terminals;
     nt_location_vector _nt_locations;
     string _start;
     production_deque _grammar;
@@ -426,7 +426,7 @@ private:
     {
         string name_;
 
-        for (typename string_size_t_map::const_iterator iter_ =
+        for (typename string_id_type_map::const_iterator iter_ =
             _non_terminals.begin(), end_ = _non_terminals.end();
             iter_ != end_; ++iter_)
         {
@@ -494,17 +494,18 @@ private:
         } while (*name_);
     }
 
-    std::size_t insert_terminal(const string &str_)
+    id_type insert_terminal(const string &str_)
     {
         return _terminals.insert
-            (string_size_t_pair(str_, _terminals.size())).first->second;
+            (string_id_type_pair(str_,
+                static_cast<id_type>(_terminals.size()))).first->second;
     }
 
-    std::size_t nt_id(const string &str_)
+    id_type nt_id(const string &str_)
     {
         return _non_terminals.insert
-            (string_size_t_pair(str_, _non_terminals.size())).
-                first->second;
+            (string_id_type_pair(str_,
+                static_cast<id_type>(_non_terminals.size()))).first->second;
     }
 
     const char_type *str_end(const char_type *str_)
@@ -555,7 +556,7 @@ private:
             case SYMBOL:
             {
                 string token_ = iter_->str();
-                typename string_size_t_map::const_iterator terminal_iter_ =
+                typename string_id_type_map::const_iterator terminal_iter_ =
                     _terminals.find(token_);
 
                 if (terminal_iter_ == _terminals.end())
