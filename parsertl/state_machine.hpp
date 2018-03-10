@@ -45,6 +45,9 @@ struct basic_state_machine
         }
     };
 
+    typedef std::vector<std::pair<id_type, id_type> > capture_vector;
+    typedef std::pair<std::size_t, capture_vector> capture_vec_pair;
+    typedef std::deque<capture_vec_pair> captures_deque;
     typedef std::vector<entry> table;
     typedef std::vector<id_type> id_type_vector;
     typedef std::pair<id_type, id_type_vector> id_type_pair;
@@ -54,6 +57,7 @@ struct basic_state_machine
     std::size_t _columns;
     std::size_t _rows;
     rules _rules;
+    captures_deque _captures;
 
     basic_state_machine() :
         _columns(0),

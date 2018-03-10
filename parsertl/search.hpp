@@ -36,6 +36,78 @@ bool parse(const basic_state_machine<id_type> &sm_, iterator &iter_,
     const token_vector &productions_);
 }
 
+template<typename iterator, typename id_type, typename lsm>
+bool search(iterator first_, iterator second_,
+    const lsm &lsm_, const basic_state_machine<id_type> &gsm_)
+{
+    typedef lexertl::iterator<iterator, lsm, lexertl::
+        match_results<iterator> > lex_iterator;
+    lex_iterator iter_(first_, second_, lsm_);
+    lex_iterator end_;
+
+    return search(gsm_, iter_, end_);
+}
+
+template<typename iterator, typename captures, typename id_type,
+    typename lsm>
+    bool search(iterator first_, iterator second_, captures &captures_,
+        lsm &lsm_, const basic_state_machine<id_type> &gsm_)
+{
+    typedef lexertl::iterator<iterator, lsm, lexertl::
+        match_results<iterator> > lex_iterator;
+    lex_iterator iter_(first_, second_, lsm_);
+    lex_iterator end_;
+    basic_match_results<id_type> results_(iter_->id, gsm_);
+    typedef parsertl::token<lex_iterator> token;
+    typedef typename token::token_vector token_vector;
+    typedef std::multimap<id_type, token_vector> prod_map;
+    prod_map prod_map_;
+    bool success_ = search(gsm_, iter_, end_, &prod_map_);
+
+    captures_.clear();
+
+    if (success_)
+    {
+        typename prod_map::const_iterator pi_ = prod_map_.begin();
+        typename prod_map::const_iterator pe_ = prod_map_.end();
+
+        captures_.resize(gsm_._captures.back().first +
+            gsm_._captures.back().second.size() + 1);
+        captures_[0].push_back(std::make_pair(iter_->first,
+            prod_map_.rbegin()->second.back().second));
+
+        for (; pi_ != pe_; ++pi_)
+        {
+            const typename basic_state_machine<id_type>::
+                capture_vec_pair &row_ = gsm_._captures[pi_->first];
+
+            if (!row_.second.empty())
+            {
+                typedef typename basic_state_machine<id_type>::capture_vector
+                    capture_vector;
+                typename capture_vector::const_iterator ti_ =
+                    row_.second.begin();
+                typename capture_vector::const_iterator te_ =
+                    row_.second.end();
+                std::size_t index_ = 0;
+
+                for (; ti_ != te_; ++ti_)
+                {
+                    const token &token1_ = pi_->second[ti_->first];
+                    const token &token2_ = pi_->second[ti_->second];
+
+                    captures_[row_.first + index_ + 1].
+                        push_back(std::make_pair(token1_.first,
+                            token2_.second));
+                    ++index_;
+                }
+            }
+        }
+    }
+
+    return success_;
+}
+
 // Equivalent of std::search().
 template<typename id_type, typename iterator>
 bool search(const basic_state_machine<id_type> &sm_, iterator &iter_,

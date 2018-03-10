@@ -31,6 +31,8 @@ public:
         }
     };
 
+    typedef std::vector<std::pair<id_type, id_type> > capture_vector;
+    typedef std::deque<std::pair<std::size_t, capture_vector> > captures_deque;
     typedef std::vector<nt_location> nt_location_vector;
     typedef std::basic_string<char_type> string;
     typedef std::map<string, id_type> string_id_type_map;
@@ -126,6 +128,8 @@ public:
         rules_.insert_macro("SYMBOL", "[A-Za-z_.][-A-Za-z_.0-9]*");
         rules_.push("{LITERAL}", LITERAL);
         rules_.push("{SYMBOL}", SYMBOL);
+        rules_.push("[(]", OPEN_PAREN);
+        rules_.push("[)]", CLOSE_PAREN);
         rules_.push("\\s+", rules_.skip());
         lexer_generator::build(rules_, _token_lexer);
 
@@ -187,6 +191,7 @@ public:
     id_type push(const char_type *lhs_, const char_type *rhs_)
     {
         const string lhs_str_ = lhs_;
+        const std::size_t old_size_ = _grammar.size();
 
         validate(lhs_);
 
@@ -201,6 +206,17 @@ public:
         }
 
         push_production(lhs_str_, rhs_);
+
+        if (!_captures.empty() && old_size_ != _grammar.size())
+        {
+            for (std::size_t i_ = old_size_, size_ = _grammar.size() - 1;
+                i_ < size_; ++i_)
+            {
+                _captures[i_ + 1].first = _captures[i_].first +
+                    _captures[i_ + 1].second.size();
+            }
+        }
+
         return static_cast<id_type>(_grammar.size() - 1);
     }
 
@@ -385,6 +401,11 @@ public:
         non_terminals(vec_);
     }
 
+    const captures_deque &captures() const
+    {
+        return _captures;
+    }
+
     std::size_t npos() const
     {
         return static_cast<std::size_t>(~0);
@@ -400,7 +421,7 @@ private:
         typename lexertl::recursive_match_results<const char_type *> >
         lexer_iterator;
 
-    enum type { LITERAL = 1, SYMBOL, PREC, OR };
+    enum type { LITERAL = 1, SYMBOL, PREC, OR, OPEN_PAREN, CLOSE_PAREN };
 
     std::size_t _next_precedence;
     lexer_state_machine _rule_lexer;
@@ -411,6 +432,7 @@ private:
     nt_location_vector _nt_locations;
     string _start;
     production_deque _grammar;
+    captures_deque _captures;
 
     token_info &info(const std::size_t id_)
     {
@@ -523,6 +545,9 @@ private:
         lexer_iterator iter_(rhs_.c_str(), rhs_.c_str() + rhs_.size(),
             _rule_lexer);
         lexer_iterator end_;
+        id_type last_id_ = 0;
+        int brackets_ = 0;
+        std::size_t count_ = 0;
 
         if (location_._first_production == npos())
         {
@@ -540,6 +565,18 @@ private:
 
         for (; iter_ != end_; ++iter_)
         {
+            if (last_id_ == OPEN_PAREN &&
+                !(iter_->id == LITERAL || iter_->id == SYMBOL ||
+                iter_->id == OPEN_PAREN))
+            {
+                std::ostringstream ss_;
+
+                ss_ << "Invalid token following open bracket in rule '";
+                narrow(lhs_.c_str(), ss_);
+                ss_ << "'.";
+                throw runtime_error(ss_.str());
+            }
+
             switch (iter_->id)
             {
             case LITERAL:
@@ -565,8 +602,8 @@ private:
 
                     // NON_TERMINAL
                     location(id_);
-                    production_._rhs.first.push_back(symbol(symbol::
-                        NON_TERMINAL, id_));
+                    production_._rhs.first.
+                        push_back(symbol(symbol::NON_TERMINAL, id_));
                 }
                 else
                 {
@@ -574,8 +611,8 @@ private:
                     token_info &token_info_ = info(id_);
 
                     production_._precedence = token_info_._precedence;
-                    production_._rhs.first.push_back(symbol(symbol::
-                        TERMINAL, id_));
+                    production_._rhs.first.
+                        push_back(symbol(symbol::TERMINAL, id_));
                 }
 
                 break;
@@ -605,6 +642,11 @@ private:
                 std::size_t index_ = _grammar.size() + 1;
                 nt_location &loc_ = location(old_lhs_);
 
+                if (brackets_ != 0)
+                {
+                    throw runtime_error("Captures cannot contain '|'.");
+                }
+
                 production_._next_lhs = loc_._last_production = index_;
                 _grammar.push_back(production_);
                 production_.clear();
@@ -612,6 +654,43 @@ private:
                 production_._index = index_;
                 break;
             }
+            case OPEN_PAREN:
+                if (_captures.size() <= _grammar.size())
+                {
+                    _captures.resize(_grammar.size() + 1);
+                }
+
+                ++brackets_;
+                _captures.back().second.push_back(std::
+                    make_pair(static_cast<id_type>(production_.
+                        _rhs.first.size()), 0));
+                break;
+            case CLOSE_PAREN:
+                --brackets_;
+
+                if (brackets_ < 0)
+                {
+                    std::ostringstream ss_;
+
+                    ss_ << "Close bracket without open bracket in rule '";
+                    narrow(lhs_.c_str(), ss_);
+                    ss_ << "'.";
+                    throw runtime_error(ss_.str());
+                }
+                else if (last_id_ != LITERAL && last_id_ != SYMBOL &&
+                    last_id_ != CLOSE_PAREN)
+                {
+                    std::ostringstream ss_;
+
+                    ss_ << "Invalid token preceding close bracket in rule '";
+                    narrow(lhs_.c_str(), ss_);
+                    ss_ << "'.";
+                    throw runtime_error(ss_.str());
+                }
+
+                _captures.back().second[brackets_].second =
+                    static_cast<id_type>(production_._rhs.first.size() - 1);
+                break;
             default:
             {
                 std::ostringstream ss_;
@@ -627,6 +706,18 @@ private:
                 break;
             }
             }
+
+            last_id_ = iter_->id;
+        }
+
+        if (brackets_ != 0)
+        {
+            std::ostringstream ss_;
+
+            ss_ << "Missing close bracket in rule '";
+            narrow(lhs_.c_str(), ss_);
+            ss_ << "'.";
+            throw runtime_error(ss_.str());
         }
 
         _grammar.push_back(production_);
