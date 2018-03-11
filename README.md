@@ -23,8 +23,8 @@ int main()
 
         grules.token("Int Name");
         grules.push("list", "(Name) "
-             "| list ',' (Int) "
-             "| list ',' (Name)");
+            "| list ',' (Int) "
+            "| list ',' (Name)");
         parsertl::generator::build(grules, gsm);
         lrules.push("[A-Z_a-z]\\w*", grules.token_id("Name"));
         lrules.push("\\d+", grules.token_id("Int"));
