@@ -3,6 +3,8 @@ parsertl
 
 parsertl: The Modular Parser Generator
 
+As well as normal parsing, it is now possible to use the library as a more powerful regex.
+
 ### Match a string with captures
 
 ```cpp
@@ -21,8 +23,8 @@ int main()
 
         grules.token("Int Name");
         grules.push("list", "(Name) "
-          "| list ',' (Int) "
-          "| list ',' (Name)");
+             "| list ',' (Int) "
+             "| list ',' (Name)");
         parsertl::generator::build(grules, gsm);
         lrules.push("[A-Z_a-z]\\w*", grules.token_id("Name"));
         lrules.push("\\d+", grules.token_id("Int"));
@@ -72,12 +74,11 @@ Three
 Four
 ```
 
-### Search a string with captures
-
-Switch match() for search() above:
+To search a string with captures, switch `match()` for `search()` above:
 ```cpp
 parsertl::search(input.c_str(), input.c_str() + input.size(), captures, lsm, gsm)
 ```
+The `captures` argument can be omitted if it is not required in both cases.
 
 ## More examples and documentation
 
