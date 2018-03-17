@@ -65,13 +65,13 @@ template<typename iterator, typename captures, typename id_type,
 
     if (success_)
     {
+        iterator last_ = iter_->first;
         typename prod_map::const_iterator pi_ = prod_map_.begin();
         typename prod_map::const_iterator pe_ = prod_map_.end();
 
         captures_.resize(gsm_._captures.back().first +
             gsm_._captures.back().second.size() + 1);
-        captures_[0].push_back(std::make_pair(iter_->first,
-            prod_map_.rbegin()->second.back().second));
+        captures_[0].push_back(std::make_pair(iter_->first, iter_->first));
 
         for (; pi_ != pe_; ++pi_)
         {
@@ -97,9 +97,16 @@ template<typename iterator, typename captures, typename id_type,
                         push_back(std::make_pair(token1_.first,
                             token2_.second));
                     ++index_;
+
+                    if (last_ < token2_.second)
+                    {
+                        last_ = token2_.second;
+                    }
                 }
             }
         }
+
+        captures_.front().back().second = last_;
     }
 
     return success_;
