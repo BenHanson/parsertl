@@ -80,6 +80,26 @@ parsertl::search(input.c_str(), input.c_str() + input.size(), captures, lsm, gsm
 ```
 The `captures` argument can be omitted if it is not required in both cases.
 
+You can use an iterator instead of calling search:
+
+```cpp
+    parsertl::citerator iter(input.c_str(), input.c_str() + input.size(), lsm, gsm);
+    parsertl::citerator end;
+
+    for (; iter != end; ++iter)
+    {
+        for (const auto &vec : *iter)
+        {
+            for (const auto &pair : vec)
+            {
+                std::cout << std::string(pair.first, pair.second) << '\n';
+            }
+        }
+
+        std::cout << '\n';
+    }
+```
+
 ## More examples and documentation
 
 For documentation see http://www.benhanson.net/parsertl.html
