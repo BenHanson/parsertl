@@ -100,29 +100,21 @@ bool search(iterator first_, iterator second_, captures &captures_,
                             push_back(std::make_pair(token1_.first,
                                 token2_.second));
                         ++index_;
-
-                        if (last_ < token2_.second)
-                        {
-                            last_ = token2_.second;
-                        }
                     }
                 }
             }
         }
 
-        if (last_ == iter_->first)
+        pi_ = prod_map_.begin();
+        pe_ = prod_map_.end();
+
+        for (; pi_ != pe_; ++pi_)
         {
-            pi_ = prod_map_.begin();
-            pe_ = prod_map_.end();
+            typename token::iter_type second_ = pi_->second.back().second;
 
-            for (; pi_ != pe_; ++pi_)
+            if (second_ > last_)
             {
-                typename token::iter_type second_ = pi_->second.back().second;
-
-                if (second_ > last_)
-                {
-                    last_ = second_;
-                }
+                last_ = second_;
             }
         }
 
