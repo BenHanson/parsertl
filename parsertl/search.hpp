@@ -47,8 +47,8 @@ bool search(iterator first_, iterator second_,
 
 template<typename iterator, typename captures, typename id_type,
     typename lsm>
-    bool search(iterator first_, iterator second_, captures &captures_,
-        lsm &lsm_, const basic_state_machine<id_type> &gsm_)
+bool search(iterator first_, iterator second_, captures &captures_,
+    lsm &lsm_, const basic_state_machine<id_type> &gsm_)
 {
     typedef lexertl::iterator<iterator, lsm, lexertl::
         match_results<iterator> > lex_iterator;
@@ -69,39 +69,59 @@ template<typename iterator, typename captures, typename id_type,
         typename prod_map::const_iterator pi_ = prod_map_.begin();
         typename prod_map::const_iterator pe_ = prod_map_.end();
 
-        captures_.resize(gsm_._captures.back().first +
-            gsm_._captures.back().second.size() + 1);
+        captures_.resize((gsm_._captures.empty() ? 0 :
+            gsm_._captures.back().first +
+            gsm_._captures.back().second.size()) + 1);
         captures_[0].push_back(std::make_pair(iter_->first, iter_->first));
 
         for (; pi_ != pe_; ++pi_)
         {
-            const typename basic_state_machine<id_type>::
-                capture_vec_pair &row_ = gsm_._captures[pi_->first];
-
-            if (!row_.second.empty())
+            if (gsm_._captures.size() > pi_->first)
             {
-                typedef typename basic_state_machine<id_type>::capture_vector
-                    capture_vector;
-                typename capture_vector::const_iterator ti_ =
-                    row_.second.begin();
-                typename capture_vector::const_iterator te_ =
-                    row_.second.end();
-                std::size_t index_ = 0;
+                const typename basic_state_machine<id_type>::
+                    capture_vec_pair &row_ = gsm_._captures[pi_->first];
 
-                for (; ti_ != te_; ++ti_)
+                if (!row_.second.empty())
                 {
-                    const token &token1_ = pi_->second[ti_->first];
-                    const token &token2_ = pi_->second[ti_->second];
+                    typedef typename basic_state_machine<id_type>::
+                        capture_vector capture_vector;
+                    typename capture_vector::const_iterator ti_ =
+                        row_.second.begin();
+                    typename capture_vector::const_iterator te_ =
+                        row_.second.end();
+                    std::size_t index_ = 0;
 
-                    captures_[row_.first + index_ + 1].
-                        push_back(std::make_pair(token1_.first,
-                            token2_.second));
-                    ++index_;
-
-                    if (last_ < token2_.second)
+                    for (; ti_ != te_; ++ti_)
                     {
-                        last_ = token2_.second;
+                        const token &token1_ = pi_->second[ti_->first];
+                        const token &token2_ = pi_->second[ti_->second];
+
+                        captures_[row_.first + index_ + 1].
+                            push_back(std::make_pair(token1_.first,
+                                token2_.second));
+                        ++index_;
+
+                        if (last_ < token2_.second)
+                        {
+                            last_ = token2_.second;
+                        }
                     }
+                }
+            }
+        }
+
+        if (last_ == iter_->first)
+        {
+            pi_ = prod_map_.begin();
+            pe_ = prod_map_.end();
+
+            for (; pi_ != pe_; ++pi_)
+            {
+                typename token::iter_type second_ = pi_->second.back().second;
+
+                if (second_ > last_)
+                {
+                    last_ = second_;
                 }
             }
         }

@@ -98,7 +98,7 @@ private:
 };
 
 typedef iterator<const char *, lexertl::state_machine,
-	state_machine> citerator;
+    state_machine> citerator;
 }
 
 #endif
