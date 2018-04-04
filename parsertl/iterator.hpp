@@ -97,8 +97,14 @@ private:
     }
 };
 
-typedef iterator<const char *, lexertl::state_machine,
-    state_machine> citerator;
+typedef iterator<std::string::const_iterator, lexertl::state_machine,
+    state_machine> siterator;
+typedef iterator<const char *, lexertl::state_machine, state_machine>
+    citerator;
+typedef iterator<std::wstring::const_iterator, lexertl::state_machine,
+    state_machine> wsiterator;
+typedef iterator<const wchar_t *, lexertl::state_machine, state_machine>
+    wciterator;
 }
 
 #endif
