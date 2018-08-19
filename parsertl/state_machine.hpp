@@ -70,6 +70,7 @@ struct basic_state_machine
         _table.clear();
         _columns = _rows = 0;
         _rules.clear();
+        _captures.clear();
     }
 
     bool empty() const
