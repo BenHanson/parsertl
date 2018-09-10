@@ -14,9 +14,10 @@
 
 namespace parsertl
 {
-template<typename id_type>
+template<typename id_ty>
 struct basic_state_machine
 {
+    typedef id_ty id_type;
     // If you get a compile error here you have
     // failed to define an unsigned id type.
     lexertl::compile_assert<(static_cast<id_type>(~0) > 0)> _valid_id_type;

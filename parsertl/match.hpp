@@ -6,35 +6,35 @@
 #ifndef PARSERTL_MATCH_HPP
 #define PARSERTL_MATCH_HPP
 
+#include "../../lexertl/lexertl/iterator.hpp"
 #include "lookup.hpp"
 #include "parse.hpp"
 
 namespace parsertl
 {
     // Parse entire sequence and return boolean
-    template<typename iterator, typename id_type, typename lsm>
-    bool match(iterator begin_, iterator end_,
-        const lsm &lsm_, const basic_state_machine<id_type> &gsm_)
+    template<typename iterator, typename sm_type, typename lsm>
+    bool match(iterator begin_, iterator end_, const lsm &lsm_,
+        const sm_type &gsm_)
     {
         typedef lexertl::iterator<iterator, lsm,
             lexertl::match_results<iterator> > lex_iterator;
         lex_iterator iter_(begin_, end_, lsm_);
-        basic_match_results<id_type> results_(iter_->id, gsm_);
+        basic_match_results<sm_type> results_(iter_->id, gsm_);
 
         return parse(gsm_, iter_, results_);
     }
 
-    template<typename iterator, typename captures, typename id_type,
+    template<typename iterator, typename captures, typename sm_type,
         typename lsm>
     bool match(iterator begin_, iterator end_, captures &captures_,
-        lsm &lsm_, const basic_state_machine<id_type> &gsm_)
+        lsm &lsm_, const sm_type &gsm_)
     {
         typedef lexertl::iterator<iterator, lsm,
             lexertl::match_results<iterator> > lex_iterator;
-        typedef typename basic_state_machine<id_type>::capture_vector
-            capture_vector;
+        typedef typename sm_type::capture_vector capture_vector;
         lex_iterator iter_(begin_, end_, lsm_);
-        basic_match_results<id_type> results_(iter_->id, gsm_);
+        basic_match_results<sm_type> results_(iter_->id, gsm_);
         typedef parsertl::token<lex_iterator> token;
         typename token::token_vector productions_;
 
