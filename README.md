@@ -16,7 +16,7 @@ int main()
 {
     try
     {
-        parsertl::rules grules;
+        parsertl::rules grules(parsertl::enable_captures);
         parsertl::state_machine gsm;
         lexertl::rules lrules;
         lexertl::state_machine lsm;
