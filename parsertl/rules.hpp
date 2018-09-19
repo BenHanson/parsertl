@@ -532,6 +532,7 @@ public:
 
         std::size_t start_ = npos();
 
+        // Determine id of start rule
         if (_start.empty())
         {
             const std::size_t id_ = _grammar[0]._lhs;
@@ -553,6 +554,45 @@ public:
         if (start_ == npos())
         {
             throw runtime_error("Specified start rule does not exist.");
+        }
+
+        // Look for unused rules
+        for (typename string_id_type_map::const_iterator iter_ =
+            _non_terminals.begin(), end_ = _non_terminals.end(); iter_ != end_;
+            ++iter_)
+        {
+            bool found_ = false;
+
+            // Skip start_
+            if (iter_->second == start_) continue;
+
+            for (typename production_deque::const_iterator iter2_ =
+                _grammar.begin(), end2_ = _grammar.end();
+                !found_ && iter2_ != end2_; ++iter2_)
+            {
+                for (typename symbol_vector::const_iterator iter3_ =
+                    iter2_->_rhs.first.begin(),
+                    end3_ = iter2_->_rhs.first.end();
+                    !found_ && iter3_ != end3_; ++iter3_)
+                {
+                    if (iter3_->_type == symbol::NON_TERMINAL &&
+                        iter3_->_id == iter_->second)
+                    {
+                        found_ = true;
+                    }
+                }
+            }
+
+            if (!found_)
+            {
+                std::ostringstream ss_;
+                const string name_ = iter_->first;
+
+                ss_ << '\'';
+                narrow(name_.c_str(), ss_);
+                ss_ << "' is an unused rule.";
+                throw runtime_error(ss_.str());
+            }
         }
 
         // Validate start rule
