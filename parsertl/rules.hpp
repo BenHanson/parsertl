@@ -341,9 +341,13 @@ public:
                         rhs_stack_.top() += char_type(' ') + r_;
                         break;
                     }
+                    case opt_list_1_idx:
+                    case opt_list_2_idx:
                     case identifier_idx:
                     case terminal_idx:
                     {
+                        // opt_list: ;
+                        // opt_list: %empty;
                         // rhs: IDENTIFIER;
                         // rhs: TERMINAL;
                         const std::size_t size_ =
