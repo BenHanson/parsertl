@@ -766,8 +766,7 @@ private:
         else
         {
             std::size_t lhs_prec_ = 0;
-            typename token_info::associativity lhs_assoc_ =
-                token_info::token;
+            typename rules::associativity lhs_assoc_ = rules::token_assoc;
             std::size_t rhs_prec_ = 0;
             const token_info *iter_ = &tokens_info_[id_];
 
@@ -778,7 +777,10 @@ private:
             }
             else if (lhs_.action == reduce)
             {
-                lhs_prec_ = grammar_[lhs_.param]._precedence;
+                const production &prod_ = grammar_[lhs_.param];
+
+                lhs_prec_ = prod_._precedence;
+                lhs_assoc_ = prod_._associativity;
             }
 
             if (rhs_.action == shift)
@@ -794,7 +796,7 @@ private:
             {
                 if (lhs_prec_ == 0 || rhs_prec_ == 0)
                 {
-                    // Favour shift (leave rhs as it is).
+                    // Favour shift (leave lhs as it is).
                     if (warnings_)
                     {
                         std::ostringstream ss_;
@@ -813,7 +815,7 @@ private:
                 {
                     switch (lhs_assoc_)
                     {
-                    case token_info::precedence:
+                    case rules::precedence_assoc:
                         // Favour shift (leave rhs as it is).
                         if (warnings_)
                         {
@@ -830,11 +832,11 @@ private:
                         }
 
                         break;
-                    case token_info::nonassoc:
+                    case rules::nonassoc_assoc:
                         lhs_.action = error;
                         lhs_.param = non_associative;
                         break;
-                    case token_info::left:
+                    case rules::left_assoc:
                         lhs_ = rhs_;
                         break;
                     }
