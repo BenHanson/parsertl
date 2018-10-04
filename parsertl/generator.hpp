@@ -832,7 +832,7 @@ private:
                         }
 
                         break;
-                    case rules::nonassoc_assoc:
+                    case rules::non_assoc:
                         lhs_.action = error;
                         lhs_.param = non_associative;
                         break;

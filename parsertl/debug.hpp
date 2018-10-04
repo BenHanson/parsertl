@@ -56,19 +56,19 @@ public:
         {
             switch (iter_->first.second)
             {
-            case rules::token_info::token:
+            case rules::token_assoc:
                 token(stream_);
                 break;
-            case rules::token_info::precedence:
+            case rules::precedence_assoc:
                 precedence(stream_);
                 break;
-            case rules::token_info::nonassoc:
+            case rules::non_assoc:
                 nonassoc(stream_);
                 break;
-            case rules::token_info::left:
+            case rules::left_assoc:
                 left(stream_);
                 break;
-            case rules::token_info::right:
+            case rules::right_assoc:
                 right(stream_);
                 break;
             }
@@ -231,7 +231,7 @@ private:
     typedef typename rules::string_vector string_vector;
     typedef typename rules::symbol symbol;
     typedef typename rules::symbol_vector symbol_vector;
-    typedef std::pair<std::size_t, typename rules::token_info::associativity>
+    typedef std::pair<std::size_t, typename rules::associativity>
         token_prec_assoc;
     typedef typename rules::token_info token_info;
     typedef typename rules::token_info_vector token_info_vector;
