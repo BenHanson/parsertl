@@ -14,13 +14,13 @@
 
 namespace parsertl
 {
-    template<typename rules, typename id_type = uint16_t>
+    template<typename rules, typename id_type = std::size_t>
     class basic_generator
     {
     public:
-        using production = typename rules::production;
-        using sm = basic_state_machine<id_type>;
-        using symbol_vector = typename rules::symbol_vector;
+        typedef typename rules::production production;
+        typedef basic_state_machine<id_type> sm;
+        typedef typename rules::symbol_vector symbol_vector;
 
         struct prod
         {
@@ -47,14 +47,15 @@ namespace parsertl
             }
         };
 
-        using prod_vector = std::vector<prod>;
-        using string = typename rules::string;
+        typedef std::deque<prod> prod_deque;
+        typedef typename rules::string string;
 
         static void build(rules& rules_, sm& sm_, std::string* warnings_ = 0)
         {
             dfa dfa_;
-            prod_vector new_grammar_;
+            prod_deque new_grammar_;
             std::size_t new_start_ = static_cast<std::size_t>(~0);
+            rules new_rules_;
             nt_info_vector new_nt_info_;
 
             rules_.validate();
@@ -65,8 +66,8 @@ namespace parsertl
             new_nt_info_[new_start_]._follow_set[0] = 1;
             build_follow_sets(new_grammar_, new_nt_info_);
             sm_.clear();
-            build_table(rules_, dfa_, new_grammar_, new_nt_info_,
-                sm_, warnings_);
+            build_table(rules_, dfa_, new_grammar_, new_nt_info_, sm_,
+                warnings_);
             // If you get an assert here then your id_type
             // is too small for the table.
             assert(static_cast<id_type>(sm_._columns - 1) == sm_._columns - 1);
@@ -105,26 +106,28 @@ namespace parsertl
             {
                 dfa_state& state_ = dfa_[s_];
                 size_t_vector symbols_;
-                using item_sets = std::vector<size_t_pair_vector>;
+                typedef std::deque<size_t_pair_vector> item_sets;
                 item_sets item_sets_;
 
                 state_._closure.assign(state_._basis.begin(),
                     state_._basis.end());
                 closure(rules_, state_);
 
-                for (const auto& pair_ : state_._closure)
+                for (typename size_t_pair_vector::const_iterator iter_ =
+                    state_._closure.begin(), end_ = state_._closure.end();
+                    iter_ != end_; ++iter_)
                 {
-                    const production p_ = grammar_[pair_.first];
+                    const production p_ = grammar_[iter_->first];
 
-                    if (pair_.second < p_._rhs.first.size())
+                    if (iter_->second < p_._rhs.first.size())
                     {
-                        const symbol& symbol_ = p_._rhs.first[pair_.second];
+                        const symbol& symbol_ = p_._rhs.first[iter_->second];
                         const std::size_t id_ =
                             symbol_._type == symbol::TERMINAL ?
                             symbol_._id : terminals_ + symbol_._id;
                         typename size_t_vector::const_iterator sym_iter_ =
                             std::find(symbols_.begin(), symbols_.end(), id_);
-                        size_t_pair new_pair_(pair_.first, pair_.second + 1);
+                        size_t_pair new_pair_(iter_->first, iter_->second + 1);
 
                         if (sym_iter_ == symbols_.end())
                         {
@@ -148,7 +151,8 @@ namespace parsertl
                     }
                 }
 
-                for (auto iter_ = symbols_.cbegin(), end_ = symbols_.cend();
+                for (typename size_t_vector::const_iterator iter_ =
+                    symbols_.begin(), end_ = symbols_.end();
                     iter_ != end_; ++iter_)
                 {
                     std::size_t index_ = iter_ - symbols_.begin();
@@ -162,11 +166,11 @@ namespace parsertl
         }
 
         static void rewrite(const rules& rules_, dfa& dfa_,
-            prod_vector& new_grammar_, std::size_t& new_start_,
+            prod_deque& new_grammar_, std::size_t& new_start_,
             nt_info_vector& new_nt_info_)
         {
-            using trie = std::pair<std::size_t, size_t_pair>;
-            using trie_map = std::map<trie, std::size_t>;
+            typedef std::pair<std::size_t, size_t_pair> trie;
+            typedef std::map<trie, std::size_t> trie_map;
             const grammar& grammar_ = rules_.grammar();
             string_vector terminals_;
             string_vector non_terminals_;
@@ -241,8 +245,8 @@ namespace parsertl
                         prod_._rhs_indexes.push_back(size_t_pair(sidx_, sidx_));
                     }
 
-                    for (std::size_t ridx_ = 0, rsize_ = production_._rhs.
-                        first.size(); ridx_ != rsize_; ++ridx_)
+                    for (std::size_t ridx_ = 0, rsize_ = production_._rhs.first.
+                        size(); ridx_ != rsize_; ++ridx_)
                     {
                         const symbol& symbol_ = production_._rhs.first[ridx_];
                         const dfa_state& st_ = dfa_[index_];
@@ -300,7 +304,7 @@ namespace parsertl
 
         // http://www.sqlite.org/src/artifact?ci=trunk&filename=tool/lemon.c
         // FindFirstSets()
-        static void build_first_sets(const prod_vector& grammar_,
+        static void build_first_sets(const prod_deque& grammar_,
             nt_info_vector& nt_info_)
         {
             bool progress_ = true;
@@ -310,16 +314,18 @@ namespace parsertl
             {
                 progress_ = 0;
 
-                for (const auto& prod_ : grammar_)
+                for (typename prod_deque::const_iterator iter_ =
+                    grammar_.begin(), end_ = grammar_.end(); iter_ != end_;
+                    ++iter_)
                 {
-                    if (nt_info_[prod_._lhs]._nullable) continue;
+                    if (nt_info_[iter_->_lhs]._nullable) continue;
 
                     std::size_t i_ = 0;
-                    const std::size_t rhs_size_ = prod_._rhs.size();
+                    const std::size_t rhs_size_ = iter_->_rhs.size();
 
                     for (; i_ < rhs_size_; i_++)
                     {
-                        const symbol& symbol_ = prod_._rhs[i_];
+                        const symbol& symbol_ = iter_->_rhs[i_];
 
                         if (symbol_._type != symbol::NON_TERMINAL ||
                             !nt_info_[symbol_._id]._nullable)
@@ -330,7 +336,7 @@ namespace parsertl
 
                     if (i_ == rhs_size_)
                     {
-                        nt_info_[prod_._lhs]._nullable = true;
+                        nt_info_[iter_->_lhs]._nullable = true;
                         progress_ = 1;
                     }
                 }
@@ -341,14 +347,16 @@ namespace parsertl
             {
                 progress_ = 0;
 
-                for (const auto& prod_ : grammar_)
+                for (typename prod_deque::const_iterator iter_ =
+                    grammar_.begin(), end_ = grammar_.end(); iter_ != end_;
+                    ++iter_)
                 {
-                    nt_info& lhs_info_ = nt_info_[prod_._lhs];
-                    const std::size_t rhs_size_ = prod_._rhs.size();
+                    nt_info& lhs_info_ = nt_info_[iter_->_lhs];
+                    const std::size_t rhs_size_ = iter_->_rhs.size();
 
                     for (std::size_t i_ = 0; i_ < rhs_size_; i_++)
                     {
-                        const symbol& symbol_ = prod_._rhs[i_];
+                        const symbol& symbol_ = iter_->_rhs[i_];
 
                         if (symbol_._type == symbol::TERMINAL)
                         {
@@ -356,7 +364,7 @@ namespace parsertl
                                 set_add(lhs_info_._first_set, symbol_._id);
                             break;
                         }
-                        else if (prod_._lhs == symbol_._id)
+                        else if (iter_->_lhs == symbol_._id)
                         {
                             if (!lhs_info_._nullable) break;
                         }
@@ -374,23 +382,28 @@ namespace parsertl
             } while (progress_);
         }
 
-        static void build_follow_sets(const prod_vector& grammar_,
+        static void build_follow_sets(const prod_deque& grammar_,
             nt_info_vector& nt_info_)
         {
             for (;;)
             {
                 bool changes_ = false;
+                typename prod_deque::const_iterator iter_ = grammar_.begin();
+                typename prod_deque::const_iterator end_ = grammar_.end();
 
-                for (const auto& prod_ : grammar_)
+                for (; iter_ != end_; ++iter_)
                 {
-                    auto rhs_iter_ = prod_._rhs.cbegin();
-                    auto rhs_end_ = prod_._rhs.cend();
+                    typename symbol_vector::const_iterator rhs_iter_ =
+                        iter_->_rhs.begin();
+                    typename symbol_vector::const_iterator rhs_end_ =
+                        iter_->_rhs.end();
 
                     for (; rhs_iter_ != rhs_end_; ++rhs_iter_)
                     {
                         if (rhs_iter_->_type == symbol::NON_TERMINAL)
                         {
-                            auto next_iter_ = rhs_iter_ + 1;
+                            typename symbol_vector::const_iterator next_iter_ =
+                                rhs_iter_ + 1;
                             nt_info& lhs_info_ = nt_info_[rhs_iter_->_id];
                             bool nullable_ = next_iter_ == rhs_end_;
 
@@ -459,7 +472,8 @@ namespace parsertl
                             {
                                 // If there is a production A -> aB
                                 // then everything in FOLLOW(A) is in FOLLOW(B).
-                                const nt_info& rhs_info_ = nt_info_[prod_._lhs];
+                                const nt_info& rhs_info_ =
+                                    nt_info_[iter_->_lhs];
 
                                 changes_ |= set_union(lhs_info_._follow_set,
                                     rhs_info_._follow_set);
@@ -473,17 +487,17 @@ namespace parsertl
         }
 
     private:
-        using entry = typename sm::entry;
-        using grammar = typename rules::production_vector;
-        using size_t_vector = std::vector<std::size_t>;
-        using hash_map = std::map<std::size_t, size_t_vector>;
-        using string_vector = typename rules::string_vector;
-        using symbol = typename rules::symbol;
-        using token_info = typename rules::token_info;
-        using token_info_vector = typename rules::token_info_vector;
+        typedef typename sm::entry entry;
+        typedef typename rules::production_deque grammar;
+        typedef std::vector<std::size_t> size_t_vector;
+        typedef std::map<std::size_t, size_t_vector> hash_map;
+        typedef typename rules::string_vector string_vector;
+        typedef typename rules::symbol symbol;
+        typedef typename rules::token_info token_info;
+        typedef typename rules::token_info_vector token_info_vector;
 
         static void build_table(const rules& rules_, const dfa& dfa_,
-            const prod_vector& new_grammar_, const nt_info_vector& new_nt_info_,
+            const prod_deque& new_grammar_, const nt_info_vector& new_nt_info_,
             sm& sm_, std::string* warnings_)
         {
             const grammar& grammar_ = rules_.grammar();
@@ -499,12 +513,16 @@ namespace parsertl
             sm_._rows = dfa_.size();
             sm_._table.resize(sm_._columns * sm_._rows);
 
-            for (const auto& d_ : dfa_)
+            for (typename dfa::const_iterator iter_ = dfa_.begin(),
+                end_ = dfa_.end(); iter_ != end_; ++iter_, ++index_)
             {
                 // shift and gotos
-                for (const auto& tran_ : d_._transitions)
+                for (typename size_t_pair_vector::const_iterator titer_ =
+                    iter_->_transitions.begin(),
+                    tend_ = iter_->_transitions.end();
+                    titer_ != tend_; ++titer_)
                 {
-                    const std::size_t id_ = tran_.first;
+                    const std::size_t id_ = titer_->first;
                     entry& lhs_ = sm_._table[index_ * columns_ + id_];
                     entry rhs_;
 
@@ -519,28 +537,32 @@ namespace parsertl
                         rhs_.action = go_to;
                     }
 
-                    rhs_.param = static_cast<id_type>(tran_.second);
-                    fill_entry(rules_, d_._closure, symbols_,
+                    rhs_.param = static_cast<id_type>(titer_->second);
+                    fill_entry(rules_, iter_->_closure, symbols_,
                         lhs_, id_, rhs_, warnings_);
                 }
 
                 // reductions
-                for (const auto& c_ : d_._closure)
+                for (typename size_t_pair_vector::const_iterator citer_ =
+                    iter_->_closure.begin(),
+                    cend_ = iter_->_closure.end(); citer_ != cend_; ++citer_)
                 {
-                    const production& production_ = grammar_[c_.first];
+                    const production& production_ = grammar_[citer_->first];
 
-                    if (production_._rhs.first.size() == c_.second)
+                    if (production_._rhs.first.size() == citer_->second)
                     {
                         char_vector follow_set_(terminals_, 0);
 
                         // config is reduction
-                        for (const auto& p_ : new_grammar_)
+                        for (typename prod_deque::const_iterator piter_ =
+                            new_grammar_.begin(), pend_ = new_grammar_.end();
+                            piter_ != pend_; ++piter_)
                         {
-                            if (production_._lhs == p_._production->_lhs &&
-                                production_._rhs == p_._production->_rhs &&
-                                index_ == p_._rhs_indexes.back().second)
+                            if (production_._lhs == piter_->_production->_lhs &&
+                                production_._rhs == piter_->_production->_rhs &&
+                                index_ == piter_->_rhs_indexes.back().second)
                             {
-                                const std::size_t lhs_id_ = p_._lhs;
+                                const std::size_t lhs_id_ = piter_->_lhs;
 
                                 set_union(follow_set_,
                                     new_nt_info_[lhs_id_]._follow_set);
@@ -561,13 +583,11 @@ namespace parsertl
                                 rhs_.action = accept;
                             }
 
-                            fill_entry(rules_, d_._closure, symbols_,
+                            fill_entry(rules_, iter_->_closure, symbols_,
                                 lhs_, i_, rhs_, warnings_);
                         }
                     }
                 }
-
-                ++index_;
             }
         }
 
@@ -575,18 +595,29 @@ namespace parsertl
         {
             const grammar& grammar_ = rules_.grammar();
             const std::size_t terminals_ = rules_.tokens_info().size();
+            typename grammar::const_iterator iter_ = grammar_.begin();
+            typename grammar::const_iterator end_ = grammar_.end();
 
-            for (const production& production_ : grammar_)
+            for (; iter_ != end_; ++iter_)
             {
+                const production& production_ = *iter_;
+                typename symbol_vector::const_iterator rhs_iter_ =
+                    production_._rhs.first.begin();
+                typename symbol_vector::const_iterator rhs_end_ =
+                    production_._rhs.first.end();
+
                 sm_._rules.push_back(typename sm::id_type_pair());
 
-                typename sm::id_type_pair& pair_ = sm_._rules.back();
+                typename sm::id_type_pair& pair_ =
+                    sm_._rules.back();
 
                 pair_.first = static_cast<id_type>(terminals_ +
                     production_._lhs);
 
-                for (const auto& symbol_ : production_._rhs.first)
+                for (; rhs_iter_ != rhs_end_; ++rhs_iter_)
                 {
+                    const symbol& symbol_ = *rhs_iter_;
+
                     if (symbol_._type == symbol::TERMINAL)
                     {
                         pair_.second.
@@ -682,13 +713,15 @@ namespace parsertl
 
             if (!states_.empty())
             {
-                for (const auto s_ : states_)
+                for (typename size_t_vector::const_iterator iter_ =
+                    states_.begin(), end_ = states_.end(); iter_ != end_;
+                    ++iter_)
                 {
-                    dfa_state& state_ = dfa_[s_];
+                    dfa_state& state_ = dfa_[*iter_];
 
                     if (state_._basis == basis_)
                     {
-                        index_ = s_;
+                        index_ = *iter_;
                         break;
                     }
                 }
@@ -709,10 +742,11 @@ namespace parsertl
         {
             std::size_t hash_ = 0;
 
-            for (const auto& pair_ : vec_)
+            for (typename size_t_pair_vector::const_iterator iter_ =
+                vec_.begin(), end_ = vec_.end(); iter_ != end_; ++iter_)
             {
                 hash_ *= 571;
-                hash_ += pair_.first * 37 + pair_.second;
+                hash_ += iter_->first * 37 + iter_->second;
             }
 
             return hash_;
@@ -865,14 +899,19 @@ namespace parsertl
         {
             if (entry_.action == shift)
             {
-                for (const auto& c_ : config_)
-                {
-                    const production& production_ = grammar_[c_.first];
+                typename size_t_pair_vector::const_iterator iter_ =
+                    config_.begin();
+                typename size_t_pair_vector::const_iterator end_ =
+                    config_.end();
 
-                    if (production_._rhs.first.size() > c_.second &&
-                        production_._rhs.first[c_.second]._id == id_)
+                for (; iter_ != end_; ++iter_)
+                {
+                    const production& production_ = grammar_[iter_->first];
+
+                    if (production_._rhs.first.size() > iter_->second &&
+                        production_._rhs.first[iter_->second]._id == id_)
                     {
-                        dump_production(production_, c_.second, terminals_,
+                        dump_production(production_, iter_->second, terminals_,
                             symbols_, ss_);
                     }
                 }
@@ -890,8 +929,10 @@ namespace parsertl
             const std::size_t dot_, const std::size_t terminals_,
             const string_vector& symbols_, std::ostringstream& ss_)
         {
-            auto sym_iter_ = production_._rhs.first.cbegin();
-            auto sym_end_ = production_._rhs.first.cend();
+            typename symbol_vector::const_iterator sym_iter_ =
+                production_._rhs.first.begin();
+            typename symbol_vector::const_iterator sym_end_ =
+                production_._rhs.first.end();
             std::size_t index_ = 0;
 
             ss_ << " (";
@@ -933,8 +974,8 @@ namespace parsertl
         }
     };
 
-    using generator = basic_generator<rules>;
-    using wgenerator = basic_generator<wrules>;
+    typedef basic_generator<rules> generator;
+    typedef basic_generator<wrules> wgenerator;
 }
 
 #endif

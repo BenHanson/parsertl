@@ -10,7 +10,7 @@
 
 namespace parsertl
 {
-    using char_vector = std::vector<char>;
+    typedef std::vector<char> char_vector;
 
     struct nt_info
     {
@@ -26,7 +26,7 @@ namespace parsertl
         }
     };
 
-    using nt_info_vector = std::vector<nt_info>;
+    typedef std::vector<nt_info> nt_info_vector;
 }
 
 #endif

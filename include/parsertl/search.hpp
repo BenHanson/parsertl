@@ -6,8 +6,7 @@
 #ifndef PARSERTL_SEARCH_HPP
 #define PARSERTL_SEARCH_HPP
 
-#include "../../../lexertl14/include/lexertl/iterator.hpp"
-#include <map>
+#include "../../../lexertl/include/lexertl/iterator.hpp"
 #include "match_results.hpp"
 #include "parse.hpp"
 #include <set>
@@ -21,8 +20,8 @@ namespace parsertl
         template<typename sm_type, typename iterator>
         void next(const sm_type& sm_, iterator& iter_,
             basic_match_results<sm_type>& results_,
-            std::set<typename sm_type::id_type>* prod_set_, iterator& last_eoi_,
-            basic_match_results<sm_type>& last_results_);
+            std::set<typename sm_type::id_type>* prod_set_,
+            iterator& last_eoi_, basic_match_results<sm_type>& last_results_);
         template<typename sm_type, typename iterator, typename token_vector>
         void next(const sm_type& sm_, iterator& iter_,
             basic_match_results<sm_type>& results_, iterator& last_eoi_,
@@ -41,8 +40,8 @@ namespace parsertl
     bool search(iterator first_, iterator second_, const lsm& lsm_,
         const sm_type& gsm_)
     {
-        using lex_iterator = lexertl::iterator<iterator, lsm,
-            lexertl::match_results<iterator>>;
+        typedef lexertl::iterator<iterator, lsm, lexertl::
+            match_results<iterator> > lex_iterator;
         lex_iterator iter_(first_, second_, lsm_);
         lex_iterator end_;
 
@@ -54,14 +53,15 @@ namespace parsertl
         bool search(iterator first_, iterator second_, captures& captures_,
             lsm& lsm_, const sm_type& gsm_)
     {
-        using lex_iterator = lexertl::iterator<iterator, lsm,
-            lexertl::match_results<iterator>>;
+        typedef lexertl::iterator<iterator, lsm, lexertl::
+            match_results<iterator> > lex_iterator;
         lex_iterator iter_(first_, second_, lsm_);
         lex_iterator end_;
         basic_match_results<sm_type> results_(iter_->id, gsm_);
-        using token = parsertl::token<lex_iterator>;
-        using token_vector = typename token::token_vector;
-        std::multimap<typename sm_type::id_type, token_vector> prod_map_;
+        typedef parsertl::token<lex_iterator> token;
+        typedef typename token::token_vector token_vector;
+        typedef std::multimap<typename sm_type::id_type, token_vector> prod_map;
+        prod_map prod_map_;
         bool success_ = search(gsm_, iter_, end_, &prod_map_);
 
         captures_.clear();
@@ -69,40 +69,50 @@ namespace parsertl
         if (success_)
         {
             iterator last_ = iter_->first;
+            typename prod_map::const_iterator pi_ = prod_map_.begin();
+            typename prod_map::const_iterator pe_ = prod_map_.end();
 
             captures_.resize((gsm_._captures.empty() ? 0 :
                 gsm_._captures.back().first +
                 gsm_._captures.back().second.size()) + 1);
             captures_[0].push_back(std::make_pair(iter_->first, iter_->first));
 
-            for (const auto& pair_ : prod_map_)
+            for (; pi_ != pe_; ++pi_)
             {
-                if (gsm_._captures.size() > pair_.first)
+                if (gsm_._captures.size() > pi_->first)
                 {
-                    const auto& row_ = gsm_._captures[pair_.first];
+                    const typename sm_type::capture_vec_pair& row_ =
+                        gsm_._captures[pi_->first];
 
                     if (!row_.second.empty())
                     {
+                        typedef typename sm_type::capture_vector capture_vector;
+                        typename capture_vector::const_iterator ti_ =
+                            row_.second.begin();
+                        typename capture_vector::const_iterator te_ =
+                            row_.second.end();
                         std::size_t index_ = 0;
 
-                        for (const auto& token_ : row_.second)
+                        for (; ti_ != te_; ++ti_)
                         {
-                            const auto& token1_ = pair_.second[token_.first];
-                            const auto& token2_ = pair_.second[token_.second];
-                            auto& entry_ = captures_[row_.first + index_ + 1];
+                            const token& token1_ = pi_->second[ti_->first];
+                            const token& token2_ = pi_->second[ti_->second];
 
-                            entry_.push_back(std::make_pair(token1_.first,
-                                token2_.second));
+                            captures_[row_.first + index_ + 1].
+                                push_back(std::make_pair(token1_.first,
+                                    token2_.second));
                             ++index_;
                         }
                     }
                 }
             }
 
-            for (const auto& pair_ : prod_map_)
+            pi_ = prod_map_.begin();
+            pe_ = prod_map_.end();
+
+            for (; pi_ != pe_; ++pi_)
             {
-                typename token::iter_type second_ =
-                    pair_.second.back().second;
+                typename token::iter_type second_ = pi_->second.back().second;
 
                 if (second_ > last_)
                 {
@@ -119,7 +129,7 @@ namespace parsertl
     // Equivalent of std::search().
     template<typename sm_type, typename iterator>
     bool search(const sm_type& sm_, iterator& iter_, iterator& end_,
-        std::set<typename sm_type::id_type>* prod_set_ = nullptr)
+        std::set<typename sm_type::id_type>* prod_set_ = 0)
     {
         bool hit_ = false;
         iterator curr_ = iter_;
@@ -176,8 +186,7 @@ namespace parsertl
 
     template<typename sm_type, typename iterator, typename token_vector>
     bool search(const sm_type& sm_, iterator& iter_, iterator& end_,
-        std::multimap<typename sm_type::id_type, token_vector>*
-        prod_map_ = nullptr)
+        std::multimap<typename sm_type::id_type, token_vector>* prod_map_ = 0)
     {
         bool hit_ = false;
         iterator curr_ = iter_;
@@ -250,8 +259,8 @@ namespace parsertl
         template<typename sm_type, typename iterator>
         void next(const sm_type& sm_, iterator& iter_,
             basic_match_results<sm_type>& results_,
-            std::set<typename sm_type::id_type>* prod_set_, iterator& last_eoi_,
-            basic_match_results<sm_type>& last_results_)
+            std::set<typename sm_type::id_type>* prod_set_,
+            iterator& last_eoi_, basic_match_results<sm_type>& last_results_)
         {
             switch (results_.entry.action)
             {
@@ -259,8 +268,8 @@ namespace parsertl
                 break;
             case shift:
             {
-                const auto* ptr_ = &sm_._table[results_.entry.param *
-                    sm_._columns];
+                const typename sm_type::entry* ptr_ =
+                    &sm_._table[results_.entry.param * sm_._columns];
 
                 results_.stack.push_back(results_.entry.param);
 
@@ -343,8 +352,8 @@ namespace parsertl
                 break;
             case shift:
             {
-                const auto* ptr_ = &sm_._table[results_.entry.param *
-                    sm_._columns];
+                const typename sm_type::entry* ptr_ =
+                    &sm_._table[results_.entry.param * sm_._columns];
 
                 results_.stack.push_back(results_.entry.param);
                 productions_.push_back(typename token_vector::

@@ -21,9 +21,6 @@ namespace parsertl
         case error:
             break;
         case shift:
-        {
-            const auto* ptr_ = &sm_._table[results_.entry.param * sm_._columns];
-
             results_.stack.push_back(results_.entry.param);
 
             if (results_.token_id != 0)
@@ -40,11 +37,11 @@ namespace parsertl
             }
             else
             {
-                results_.entry = ptr_[results_.token_id];
+                results_.entry = sm_._table[results_.stack.back() *
+                    sm_._columns + results_.token_id];
             }
 
             break;
-        }
         case reduce:
         {
             const std::size_t size_ =
@@ -91,9 +88,6 @@ namespace parsertl
         case error:
             break;
         case shift:
-        {
-            const auto* ptr_ = &sm_._table[results_.entry.param * sm_._columns];
-
             results_.stack.push_back(results_.entry.param);
             productions_.push_back(typename token_vector::value_type(iter_->id,
                 iter_->first, iter_->second));
@@ -112,11 +106,11 @@ namespace parsertl
             }
             else
             {
-                results_.entry = ptr_[results_.token_id];
+                results_.entry = sm_._table[results_.stack.back() *
+                    sm_._columns + results_.token_id];
             }
 
             break;
-        }
         case reduce:
         {
             const std::size_t size_ =
@@ -125,9 +119,9 @@ namespace parsertl
 
             if (size_)
             {
-                results_.stack.resize(results_.stack.size() - size_);
                 token_.first = (productions_.end() - size_)->first;
                 token_.second = productions_.back().second;
+                results_.stack.resize(results_.stack.size() - size_);
                 productions_.resize(productions_.size() - size_);
             }
             else

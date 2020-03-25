@@ -14,10 +14,10 @@ namespace parsertl
     template<typename iterator>
     struct token
     {
-        using char_type = typename iterator::value_type::char_type;
-        using iter_type = typename iterator::value_type::iter_type;
-        using string = std::basic_string<char_type>;
-        using token_vector = std::vector<token<iterator>>;
+        typedef typename iterator::value_type::char_type char_type;
+        typedef typename iterator::value_type::iter_type iter_type;
+        typedef std::basic_string<char_type> string;
+        typedef std::vector<token<iterator> > token_vector;
         std::size_t id;
         iter_type first;
         iter_type second;

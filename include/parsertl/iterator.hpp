@@ -12,21 +12,21 @@
 namespace parsertl
 {
     template<typename iter, typename lsm_type, typename gsm_type,
-        typename id_type = std::uint16_t>
+        typename id_type = std::size_t>
         class iterator
     {
     public:
-        using results = std::vector<std::vector<std::pair<iter, iter>>>;
-        using value_type = results;
-        using difference_type = ptrdiff_t;
-        using pointer = const value_type*;
-        using reference = const value_type&;
-        using iterator_category = std::forward_iterator_tag;
+        typedef std::vector<std::vector<std::pair<iter, iter> > > results;
+        typedef results value_type;
+        typedef ptrdiff_t difference_type;
+        typedef const value_type* pointer;
+        typedef const value_type& reference;
+        typedef std::forward_iterator_tag iterator_category;
 
         iterator() :
             _end(),
-            _lsm(nullptr),
-            _gsm(nullptr)
+            _lsm(0),
+            _gsm(0)
         {
         }
 
@@ -36,7 +36,7 @@ namespace parsertl
             _gsm(&gsm)
         {
             _end = end_;
-            _captures.push_back(std::vector<std::pair<iter, iter>>());
+            _captures.push_back(std::vector<std::pair<iter, iter> >());
             _captures.back().push_back(std::make_pair(start_, start_));
             lookup();
         }
@@ -68,7 +68,7 @@ namespace parsertl
         bool operator ==(const iterator& rhs_) const
         {
             return _lsm == rhs_._lsm && _gsm == rhs_._gsm &&
-                (_gsm == nullptr ? true :
+                (_gsm == 0 ? true :
                     _captures == rhs_._captures);
         }
 
@@ -85,26 +85,26 @@ namespace parsertl
 
         void lookup()
         {
-            const auto pair_ = _captures[0].back();
+            const std::pair<iter, iter> pair_ = _captures[0].back();
 
             _captures.clear();
 
             if (!search(pair_.second, _end, _captures, *_lsm, *_gsm))
             {
-                _lsm = nullptr;
-                _gsm = nullptr;
+                _lsm = 0;
+                _gsm = 0;
             }
         }
     };
 
-    using siterator = iterator<std::string::const_iterator,
-        lexertl::state_machine, state_machine>;
-    using citerator = iterator<const char*, lexertl::state_machine,
-        state_machine>;
-    using wsiterator = iterator<std::wstring::const_iterator,
-        lexertl::state_machine, state_machine>;
-    using wciterator = iterator<const wchar_t*, lexertl::state_machine,
-        state_machine>;
+    typedef iterator<std::string::const_iterator, lexertl::state_machine,
+        state_machine> siterator;
+    typedef iterator<const char*, lexertl::state_machine, state_machine>
+        citerator;
+    typedef iterator<std::wstring::const_iterator, lexertl::state_machine,
+        state_machine> wsiterator;
+    typedef iterator<const wchar_t*, lexertl::state_machine, state_machine>
+        wciterator;
 }
 
 #endif

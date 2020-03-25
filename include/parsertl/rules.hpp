@@ -9,8 +9,8 @@
 #include "bison_lookup.hpp"
 #include "ebnf_tables.hpp"
 #include "enums.hpp"
-#include "../../../lexertl14/include/lexertl/generator.hpp"
-#include "../../../lexertl14/include/lexertl/iterator.hpp"
+#include "../../../lexertl/include/lexertl/generator.hpp"
+#include "../../../lexertl/include/lexertl/iterator.hpp"
 #include "match_results.hpp"
 #include "narrow.hpp"
 #include "runtime_error.hpp"
@@ -18,11 +18,11 @@
 
 namespace parsertl
 {
-    template<typename T, typename id_type = uint16_t>
+    template<typename T, typename id_type = std::size_t>
     class basic_rules
     {
     public:
-        using char_type = T;
+        typedef T char_type;
 
         struct nt_location
         {
@@ -36,15 +36,14 @@ namespace parsertl
             }
         };
 
-        using capture_vector = std::vector<std::pair<id_type, id_type>>;
-        // first is the starting index for each block of captures
-        using captures_vector =
-            std::vector<std::pair<std::size_t, capture_vector>>;
-        using nt_location_vector = std::vector<nt_location>;
-        using string = std::basic_string<char_type>;
-        using string_id_type_map = std::map<string, id_type>;
-        using string_id_type_pair = std::pair<string, id_type>;
-        using string_vector = std::vector<string>;
+        typedef std::vector<std::pair<id_type, id_type> > capture_vector;
+        typedef std::deque<std::pair<std::size_t, capture_vector> >
+            captures_deque;
+        typedef std::vector<nt_location> nt_location_vector;
+        typedef std::basic_string<char_type> string;
+        typedef std::map<string, id_type> string_id_type_map;
+        typedef std::pair<string, id_type> string_id_type_pair;
+        typedef std::vector<string> string_vector;
 
         struct symbol
         {
@@ -71,7 +70,7 @@ namespace parsertl
             }
         };
 
-        using symbol_vector = std::vector<symbol>;
+        typedef std::vector<symbol> symbol_vector;
         enum associativity
         {
             token_assoc, precedence_assoc, non_assoc, left_assoc, right_assoc
@@ -107,7 +106,7 @@ namespace parsertl
             }
         };
 
-        using production_vector = std::vector<production>;
+        typedef std::deque<production> production_deque;
 
         struct token_info
         {
@@ -128,7 +127,7 @@ namespace parsertl
             }
         };
 
-        using token_info_vector = std::vector<token_info>;
+        typedef std::vector<token_info> token_info_vector;
 
         basic_rules(const std::size_t flags_ = 0) :
             _flags(flags_),
@@ -305,12 +304,12 @@ namespace parsertl
 
             lexer_iterator iter_(rhs_.c_str(), rhs_.c_str() + rhs_.size(),
                 _rule_lexer);
-            basic_match_results<basic_state_machine<id_type>> results_;
+            basic_match_results<basic_state_machine<id_type> > results_;
             // Qualify token to prevent arg dependant lookup
-            using token_t = parsertl::token<lexer_iterator>;
+            typedef parsertl::token<lexer_iterator> token_t;
             typename token_t::token_vector productions_;
             std::stack<string> rhs_stack_;
-            std::stack<std::pair<string, string>> new_rules_;
+            std::stack<std::pair<string, string> > new_rules_;
             char_type empty_or_[] =
             { '%', 'e', 'm', 'p', 't', 'y', ' ', '|', ' ', 0 };
             char_type or_[] = { ' ', '|', ' ', 0 };
@@ -324,7 +323,7 @@ namespace parsertl
                 {
                     switch (static_cast<ebnf_indexes>(results_.entry.param))
                     {
-                    case ebnf_indexes::rhs_or_2_idx:
+                    case rhs_or_2_idx:
                     {
                         // rhs_or: rhs_or '|' opt_list;
                         const std::size_t size_ =
@@ -347,11 +346,11 @@ namespace parsertl
 
                         break;
                     }
-                    case ebnf_indexes::opt_list_1_idx:
+                    case opt_list_1_idx:
                         // opt_list: ;
                         rhs_stack_.push(string());
                         break;
-                    case ebnf_indexes::opt_list_3_idx:
+                    case opt_list_3_idx:
                     {
                         // opt_list: rhs_list opt_prec;
                         const std::size_t size_ =
@@ -370,7 +369,7 @@ namespace parsertl
 
                         break;
                     }
-                    case ebnf_indexes::rhs_list_2_idx:
+                    case rhs_list_2_idx:
                     {
                         // rhs_list: rhs_list rhs;
                         string r_ = rhs_stack_.top();
@@ -379,9 +378,9 @@ namespace parsertl
                         rhs_stack_.top() += char_type(' ') + r_;
                         break;
                     }
-                    case ebnf_indexes::opt_list_2_idx:
-                    case ebnf_indexes::identifier_idx:
-                    case ebnf_indexes::terminal_idx:
+                    case opt_list_2_idx:
+                    case identifier_idx:
+                    case terminal_idx:
                     {
                         // opt_list: %empty;
                         // rhs: IDENTIFIER;
@@ -394,8 +393,8 @@ namespace parsertl
                         rhs_stack_.push(token_.str());
                         break;
                     }
-                    case ebnf_indexes::optional_1_idx:
-                    case ebnf_indexes::optional_2_idx:
+                    case optional_1_idx:
+                    case optional_2_idx:
                     {
                         // rhs: '[' rhs_or ']';
                         // rhs: rhs '?';
@@ -412,8 +411,8 @@ namespace parsertl
                         new_rules_.push(pair_);
                         break;
                     }
-                    case ebnf_indexes::zom_1_idx:
-                    case ebnf_indexes::zom_2_idx:
+                    case zom_1_idx:
+                    case zom_2_idx:
                     {
                         // rhs: '{' rhs_or '}';
                         // rhs: rhs '*';
@@ -431,8 +430,8 @@ namespace parsertl
                         new_rules_.push(pair_);
                         break;
                     }
-                    case ebnf_indexes::oom_1_idx:
-                    case ebnf_indexes::oom_2_idx:
+                    case oom_1_idx:
+                    case oom_2_idx:
                     {
                         // rhs: '{' rhs_or '}' '-';
                         // rhs: rhs '+';
@@ -450,7 +449,7 @@ namespace parsertl
                         new_rules_.push(pair_);
                         break;
                     }
-                    case ebnf_indexes::bracketed_idx:
+                    case bracketed_idx:
                     {
                         // rhs: '(' rhs_or ')';
                         std::size_t& counter_ = _new_rule_ids[lhs_];
@@ -476,8 +475,8 @@ namespace parsertl
                         new_rules_.push(pair_);
                         break;
                     }
-                    case ebnf_indexes::prec_ident_idx:
-                    case ebnf_indexes::prec_term_idx:
+                    case prec_ident_idx:
+                    case prec_term_idx:
                     {
                         // opt_prec: PREC IDENTIFIER;
                         // opt_prec: PREC TERMINAL;
@@ -598,32 +597,36 @@ namespace parsertl
             }
 
             // Look for unused rules
-            for (const auto& pair_ : _non_terminals)
+            for (typename string_id_type_map::const_iterator iter_ =
+                _non_terminals.begin(), end_ = _non_terminals.end();
+                iter_ != end_; ++iter_)
             {
                 bool found_ = false;
 
                 // Skip start_
-                if (pair_.second == start_) continue;
+                if (iter_->second == start_) continue;
 
-                for (const auto& prod_ : _grammar)
+                for (typename production_deque::const_iterator iter2_ =
+                    _grammar.begin(), end2_ = _grammar.end();
+                    !found_ && iter2_ != end2_; ++iter2_)
                 {
-                    for (const auto& symbol_ : prod_._rhs.first)
+                    for (typename symbol_vector::const_iterator iter3_ =
+                        iter2_->_rhs.first.begin(),
+                        end3_ = iter2_->_rhs.first.end();
+                        !found_ && iter3_ != end3_; ++iter3_)
                     {
-                        if (symbol_._type == symbol::NON_TERMINAL &&
-                            symbol_._id == pair_.second)
+                        if (iter3_->_type == symbol::NON_TERMINAL &&
+                            iter3_->_id == iter_->second)
                         {
                             found_ = true;
-                            break;
                         }
                     }
-
-                    if (found_) break;
                 }
 
                 if (!found_)
                 {
                     std::ostringstream ss_;
-                    const string name_ = pair_.first;
+                    const string name_ = iter_->first;
 
                     ss_ << '\'';
                     narrow(name_.c_str(), ss_);
@@ -648,22 +651,33 @@ namespace parsertl
             }
             /*        else
                     {
+                        typename production_deque::const_iterator iter_ =
+                            _grammar.begin();
+                        typename production_deque::const_iterator end_ =
+                            _grammar.end();
+
                         _grammar[_nt_locations[start_]._first_production].
                             _rhs.first.push_back(symbol(symbol::TERMINAL,
                                 insert_terminal(string(1, '$'))));
 
-                        for (const auto &p_ : _grammar)
+                        for (; iter_ != end_; ++iter_)
                         {
-                            for (const auto &s_ : p_._rhs.first)
+                            typename symbol_vector::const_iterator sym_iter_ =
+                                iter_->_rhs.first.begin();
+                            typename symbol_vector::const_iterator sym_end_ =
+                                iter_->_rhs.first.end();
+
+                            for (; sym_iter_ != sym_end_; ++sym_iter_)
                             {
-                                if (s_._type == symbol::NON_TERMINAL &&
-                                    s_._id == start_)
+                                if (sym_iter_->_type == symbol::NON_TERMINAL &&
+                                    sym_iter_->_id == start_)
                                 {
                                     std::ostringstream ss_;
-                                    const string name_ = name_from_id(p_._lhs);
+                                    const string name_ =
+                                        name_from_id(iter_->_lhs);
 
-                                    ss_ << "The start symbol occurs on "
-                                        "the RHS of rule '";
+                                    ss_ << "The start symbol occurs on the "
+                                        "RHS of rule '";
                                     narrow(name_.c_str(), ss_);
                                     ss_ << "'.";
                                     throw runtime_error(ss_.str());
@@ -689,7 +703,7 @@ namespace parsertl
             }
         }
 
-        const production_vector& grammar() const
+        const production_deque& grammar() const
         {
             return _grammar;
         }
@@ -706,23 +720,32 @@ namespace parsertl
 
         void terminals(string_vector& vec_) const
         {
+            typename string_id_type_map::const_iterator iter_ =
+                _terminals.begin();
+            typename string_id_type_map::const_iterator end_ =
+                _terminals.end();
+
             vec_.resize(_terminals.size());
 
-            for (const auto& pair_ : _terminals)
+            for (; iter_ != end_; ++iter_)
             {
-                vec_[pair_.second] = pair_.first;
+                vec_[iter_->second] = iter_->first;
             }
         }
 
         void non_terminals(string_vector& vec_) const
         {
             const std::size_t size_ = vec_.size();
+            typename string_id_type_map::const_iterator iter_ =
+                _non_terminals.begin();
+            typename string_id_type_map::const_iterator end_ =
+                _non_terminals.end();
 
             vec_.resize(size_ + _non_terminals.size());
 
-            for (const auto& pair_ : _non_terminals)
+            for (; iter_ != end_; ++iter_)
             {
-                vec_[size_ + pair_.second] = pair_.first;
+                vec_[size_ + iter_->second] = iter_->first;
             }
         }
 
@@ -732,7 +755,7 @@ namespace parsertl
             non_terminals(vec_);
         }
 
-        const captures_vector& captures() const
+        const captures_deque& captures() const
         {
             return _captures;
         }
@@ -743,7 +766,7 @@ namespace parsertl
         }
 
     private:
-        enum class ebnf_indexes
+        enum ebnf_indexes
         {
             rule_idx = 2,
             rhs_or_1_idx,
@@ -767,14 +790,14 @@ namespace parsertl
             prec_term_idx
         };
 
-        using lexer_rules = typename lexertl::basic_rules<char, char_type>;
-        using lexer_state_machine =
-            typename lexertl::basic_state_machine<char_type>;
-        using lexer_generator =
-            typename lexertl::basic_generator<lexer_rules, lexer_state_machine>;
-        using lexer_iterator =
-            typename lexertl::iterator<const char_type*, lexer_state_machine,
-            typename lexertl::match_results<const char_type*>>;
+        typedef typename lexertl::basic_rules<char, char_type> lexer_rules;
+        typedef typename lexertl::basic_state_machine<char_type>
+            lexer_state_machine;
+        typedef typename lexertl::basic_generator<lexer_rules,
+            lexer_state_machine> lexer_generator;
+        typedef typename lexertl::iterator<const char_type*,
+            lexer_state_machine, typename lexertl::match_results
+            <const char_type*> > lexer_iterator;
 
         std::size_t _flags;
         ebnf_tables _ebnf_tables;
@@ -788,8 +811,8 @@ namespace parsertl
         std::map<string, std::size_t> _new_rule_ids;
         std::set<string> _generated_rules;
         string _start;
-        production_vector _grammar;
-        captures_vector _captures;
+        production_deque _grammar;
+        captures_deque _captures;
 
         token_info& info(const std::size_t id_)
         {
@@ -805,11 +828,13 @@ namespace parsertl
         {
             string name_;
 
-            for (const auto& pair_ : _non_terminals)
+            for (typename string_id_type_map::const_iterator iter_ =
+                _non_terminals.begin(), end_ = _non_terminals.end();
+                iter_ != end_; ++iter_)
             {
-                if (pair_.second == id_)
+                if (iter_->second == id_)
                 {
-                    name_ = pair_.first;
+                    name_ = iter_->first;
                     break;
                 }
             }
@@ -896,9 +921,9 @@ namespace parsertl
             nt_location& location_ = location(lhs_id_);
             lexer_iterator iter_(rhs_.c_str(), rhs_.c_str() +
                 rhs_.size(), _rule_lexer);
-            basic_match_results<basic_state_machine<id_type>> results_;
+            basic_match_results<basic_state_machine<id_type> > results_;
             // Qualify token to prevent arg dependant lookup
-            using token_t = parsertl::token<lexer_iterator>;
+            typedef parsertl::token<lexer_iterator> token_t;
             typename token_t::token_vector productions_;
             production production_(_grammar.size());
             int brackets_ = 0;
@@ -980,7 +1005,7 @@ namespace parsertl
                 {
                     switch (static_cast<ebnf_indexes>(results_.entry.param))
                     {
-                    case ebnf_indexes::identifier_idx:
+                    case identifier_idx:
                     {
                         // rhs: IDENTIFIER;
                         const std::size_t size_ =
@@ -1018,7 +1043,7 @@ namespace parsertl
 
                         break;
                     }
-                    case ebnf_indexes::terminal_idx:
+                    case terminal_idx:
                     {
                         // rhs: TERMINAL;
                         const std::size_t size_ =
@@ -1039,8 +1064,8 @@ namespace parsertl
                             TERMINAL, id_));
                         break;
                     }
-                    case ebnf_indexes::prec_ident_idx:
-                    case ebnf_indexes::prec_term_idx:
+                    case prec_ident_idx:
+                    case prec_term_idx:
                     {
                         // opt_prec: PREC IDENTIFIER;
                         // opt_prec: PREC TERMINAL;
@@ -1099,8 +1124,8 @@ namespace parsertl
         }
     };
 
-    using rules = basic_rules<char>;
-    using wrules = basic_rules<wchar_t>;
+    typedef basic_rules<char> rules;
+    typedef basic_rules<wchar_t> wrules;
 }
 
 #endif

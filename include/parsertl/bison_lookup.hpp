@@ -29,7 +29,7 @@ namespace parsertl
             goto yydefault;
 
         results_.token_id = tables_.yytranslate[iter_->id];
-        yyn_ += results_.token_id;
+        yyn_ += static_cast<int>(results_.token_id);
 
         if (yyn_ < 0 || tables_struct::YYLAST < yyn_ ||
             tables_.yycheck[yyn_] != results_.token_id)

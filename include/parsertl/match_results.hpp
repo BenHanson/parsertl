@@ -15,7 +15,7 @@ namespace parsertl
     template<typename sm_type>
     struct basic_match_results
     {
-        using id_type = typename sm_type::id_type;
+        typedef typename sm_type::id_type id_type;
         std::vector<id_type> stack;
         id_type token_id;
         typename sm_type::entry entry;
@@ -101,7 +101,7 @@ namespace parsertl
         }
     };
 
-    using match_results = basic_match_results<state_machine>;
+    typedef basic_match_results<state_machine> match_results;
 }
 
 #endif

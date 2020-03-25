@@ -16,13 +16,13 @@ namespace parsertl
     class basic_debug
     {
     public:
-        using rules = basic_rules<char_type>;
-        using ostream = std::basic_ostream<char_type>;
+        typedef basic_rules<char_type> rules;
+        typedef std::basic_ostream<char_type> ostream;
 
         static void dump(const rules& rules_, ostream& stream_)
         {
             const std::size_t start_ = rules_.start();
-            const production_vector& grammar_ = rules_.grammar();
+            const production_deque& grammar_ = rules_.grammar();
             const token_info_vector& tokens_info_ = rules_.tokens_info();
             const std::size_t terminals_ = tokens_info_.size();
             string_vector symbols_;
@@ -51,9 +51,10 @@ namespace parsertl
                 }
             }
 
-            for (const auto& pair_ : map_)
+            for (typename token_map::const_iterator iter_ =
+                map_.begin(), end_ = map_.end(); iter_ != end_; ++iter_)
             {
-                switch (pair_.first.second)
+                switch (iter_->first.second)
                 {
                 case rules::token_assoc:
                     token(stream_);
@@ -72,7 +73,7 @@ namespace parsertl
                     break;
                 }
 
-                stream_ << pair_.second << '\n';
+                stream_ << iter_->second << '\n';
             }
 
             if (start_ != static_cast<std::size_t>(~0))
@@ -84,12 +85,13 @@ namespace parsertl
 
             stream_ << '%' << '%' << '\n' << '\n';
 
-            for (auto iter_ = grammar_.cbegin(), end_ = grammar_.cend();
+            for (typename production_deque::const_iterator iter_ =
+                grammar_.begin(), end_ = grammar_.end();
                 iter_ != end_; ++iter_)
             {
                 if (seen_.find(iter_->_lhs) == seen_.end())
                 {
-                    auto lhs_iter_ = iter_;
+                    typename production_deque::const_iterator lhs_iter_ = iter_;
                     std::size_t index_ = lhs_iter_ - grammar_.begin();
 
                     stream_ << symbols_[terminals_ + lhs_iter_->_lhs];
@@ -104,8 +106,10 @@ namespace parsertl
                         }
                         else
                         {
-                            auto rhs_iter_ = lhs_iter_->_rhs.first.cbegin();
-                            auto rhs_end_ = lhs_iter_->_rhs.first.cend();
+                            typename symbol_vector::const_iterator rhs_iter_ =
+                                lhs_iter_->_rhs.first.begin();
+                            typename symbol_vector::const_iterator rhs_end_ =
+                                lhs_iter_->_rhs.first.end();
 
                             for (; rhs_iter_ != rhs_end_; ++rhs_iter_)
                             {
@@ -159,7 +163,7 @@ namespace parsertl
 
         static void dump(const rules& rules_, const dfa& dfa_, ostream& stream_)
         {
-            const production_vector& grammar_ = rules_.grammar();
+            const production_deque& grammar_ = rules_.grammar();
             const std::size_t terminals_ = rules_.tokens_info().size();
             string_vector symbols_;
 
@@ -173,9 +177,11 @@ namespace parsertl
 
                 state(idx_, stream_);
 
-                for (const auto& pair_ : config_)
+                for (typename size_t_pair_vector::const_iterator iter_ =
+                    config_.begin(), end_ = config_.end(); iter_ != end_;
+                    ++iter_)
                 {
-                    const production& p_ = grammar_[pair_.first];
+                    const production& p_ = grammar_[iter_->first];
                     std::size_t j_ = 0;
 
                     stream_ << ' ' << ' ' << symbols_[terminals_ + p_._lhs] <<
@@ -184,11 +190,11 @@ namespace parsertl
                     for (; j_ < p_._rhs.size(); ++j_)
                     {
                         const symbol& symbol_ = p_._rhs[j_];
-                        const std::size_t id_ = symbol_._type ==
-                            symbol::TERMINAL ? symbol_._id :
+                        const std::size_t id_ =
+                            symbol_._type == symbol::TERMINAL ? symbol_._id :
                             terminals_ + symbol_._id;
 
-                        if (j_ == pair_.second)
+                        if (j_ == iter_->second)
                         {
                             stream_ << ' ' << '.';
                         }
@@ -196,7 +202,7 @@ namespace parsertl
                         stream_ << ' ' << symbols_[id_];
                     }
 
-                    if (j_ == pair_.second)
+                    if (j_ == iter_->second)
                     {
                         stream_ << ' ' << '.';
                     }
@@ -207,10 +213,12 @@ namespace parsertl
                 if (!state_._transitions.empty())
                     stream_ << '\n';
 
-                for (const auto& pair_ : state_._transitions)
+                for (typename size_t_pair_vector::const_iterator t_ =
+                    state_._transitions.begin(), e_ = state_._transitions.end();
+                    t_ != e_; ++t_)
                 {
-                    stream_ << ' ' << ' ' << symbols_[pair_.first] << ' ' <<
-                        '-' << '>' << ' ' << pair_.second << '\n';
+                    stream_ << ' ' << ' ' << symbols_[t_->first] << ' ' <<
+                        '-' << '>' << ' ' << t_->second << '\n';
                 }
 
                 stream_ << '\n';
@@ -218,17 +226,18 @@ namespace parsertl
         }
 
     private:
-        using production = typename rules::production;
-        using production_vector = typename rules::production_vector;
-        using string = std::basic_string<char_type>;
-        using string_vector = typename rules::string_vector;
-        using symbol = typename rules::symbol;
-        using token_prec_assoc =
-            std::pair<std::size_t, typename rules::associativity>;
-        using token_info = typename rules::token_info;
-        using token_info_vector = typename rules::token_info_vector;
-        using token_map = std::map<token_prec_assoc, string>;
-        using token_pair = std::pair<token_prec_assoc, string>;
+        typedef typename rules::production production;
+        typedef typename rules::production_deque production_deque;
+        typedef std::basic_string<char_type> string;
+        typedef typename rules::string_vector string_vector;
+        typedef typename rules::symbol symbol;
+        typedef typename rules::symbol_vector symbol_vector;
+        typedef std::pair<std::size_t, typename rules::associativity>
+            token_prec_assoc;
+        typedef typename rules::token_info token_info;
+        typedef typename rules::token_info_vector token_info_vector;
+        typedef std::map<token_prec_assoc, string> token_map;
+        typedef std::pair<token_prec_assoc, string> token_pair;
 
         static void empty(std::ostream& stream_)
         {
@@ -321,8 +330,8 @@ namespace parsertl
         }
     };
 
-    using debug = basic_debug<char>;
-    using wdebug = basic_debug<wchar_t>;
+    typedef basic_debug<char> debug;
+    typedef basic_debug<wchar_t> wdebug;
 }
 
 #endif

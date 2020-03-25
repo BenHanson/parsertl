@@ -6,7 +6,9 @@
 #ifndef PARSERTL_STATE_MACHINE_HPP
 #define PARSERTL_STATE_MACHINE_HPP
 
+#include "../../../lexertl/include/lexertl/compile_assert.hpp"
 #include "enums.hpp"
+#include <deque>
 #include <map>
 #include <vector>
 
@@ -15,11 +17,10 @@ namespace parsertl
     template<typename id_ty>
     struct basic_state_machine
     {
-        using id_type = id_ty;
+        typedef id_ty id_type;
         // If you get a compile error here you have
         // failed to define an unsigned id type.
-        static_assert(std::is_unsigned<id_type>::value,
-            "Your id type is signed");
+        lexertl::compile_assert<(static_cast<id_type>(~0) > 0)> _valid_id_type;
 
         struct entry
         {
@@ -45,19 +46,19 @@ namespace parsertl
             }
         };
 
-        using capture_vector = std::vector<std::pair<id_type, id_type>>;
-        using captures_vector =
-            std::vector<std::pair<std::size_t, capture_vector>>;
-        using table = std::vector<entry>;
-        using id_type_vector = std::vector<id_type>;
-        using id_type_pair = std::pair<id_type, id_type_vector>;
-        using rules = std::vector<id_type_pair>;
+        typedef std::vector<std::pair<id_type, id_type> > capture_vector;
+        typedef std::pair<std::size_t, capture_vector> capture_vec_pair;
+        typedef std::deque<capture_vec_pair> captures_deque;
+        typedef std::vector<entry> table;
+        typedef std::vector<id_type> id_type_vector;
+        typedef std::pair<id_type, id_type_vector> id_type_pair;
+        typedef std::deque<id_type_pair> rules;
 
         table _table;
         std::size_t _columns;
         std::size_t _rows;
         rules _rules;
-        captures_vector _captures;
+        captures_deque _captures;
 
         basic_state_machine() :
             _columns(0),
@@ -79,7 +80,7 @@ namespace parsertl
         }
     };
 
-    using state_machine = basic_state_machine<uint16_t>;
+    typedef basic_state_machine<std::size_t> state_machine;
 }
 
 #endif
