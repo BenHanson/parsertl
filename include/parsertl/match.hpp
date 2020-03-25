@@ -6,7 +6,7 @@
 #ifndef PARSERTL_MATCH_HPP
 #define PARSERTL_MATCH_HPP
 
-#include "../../../lexertl/include/lexertl/iterator.hpp"
+#include "../../../lexertl14/include/lexertl/iterator.hpp"
 #include "lookup.hpp"
 #include "parse.hpp"
 
@@ -14,11 +14,11 @@ namespace parsertl
 {
     // Parse entire sequence and return boolean
     template<typename iterator, typename sm_type, typename lsm>
-    bool match(iterator begin_, iterator end_, const lsm &lsm_,
-        const sm_type &gsm_)
+    bool match(iterator begin_, iterator end_,
+        const lsm& lsm_, const sm_type& gsm_)
     {
-        typedef lexertl::iterator<iterator, lsm,
-            lexertl::match_results<iterator> > lex_iterator;
+        using lex_iterator = lexertl::iterator<iterator, lsm,
+            lexertl::match_results<iterator>>;
         lex_iterator iter_(begin_, end_, lsm_);
         basic_match_results<sm_type> results_(iter_->id, gsm_);
 
@@ -27,17 +27,17 @@ namespace parsertl
 
     template<typename iterator, typename captures, typename sm_type,
         typename lsm>
-    bool match(iterator begin_, iterator end_, captures &captures_,
-        lsm &lsm_, const sm_type &gsm_)
+        bool match(iterator begin_, iterator end_, captures& captures_,
+            lsm& lsm_, const sm_type& gsm_)
     {
-        typedef lexertl::iterator<iterator, lsm,
-            lexertl::match_results<iterator> > lex_iterator;
-        typedef typename sm_type::capture_vector capture_vector;
+        using lex_iterator = lexertl::iterator<iterator, lsm,
+            lexertl::match_results<iterator>>;
         lex_iterator iter_(begin_, end_, lsm_);
         basic_match_results<sm_type> results_(iter_->id, gsm_);
-        typedef parsertl::token<lex_iterator> token;
+        using token = parsertl::token<lex_iterator>;
         typename token::token_vector productions_;
 
+        captures_.clear();
         captures_.resize(gsm_._captures.back().first +
             gsm_._captures.back().second.size() + 1);
         captures_[0].push_back(std::make_pair(begin_, end_));
@@ -47,26 +47,21 @@ namespace parsertl
         {
             if (results_.entry.action == parsertl::reduce)
             {
-                const std::pair<std::size_t, capture_vector> &row_ =
-                    gsm_._captures[results_.entry.param];
+                const auto& row_ = gsm_._captures[results_.entry.param];
 
                 if (!row_.second.empty())
                 {
                     std::size_t index_ = 0;
-                    typename capture_vector::const_iterator i_ =
-                        row_.second.begin();
-                    typename capture_vector::const_iterator e_ =
-                        row_.second.end();
 
-                    for (; i_ != e_; ++i_)
+                    for (const auto& pair_ : row_.second)
                     {
-                        const token &token1_ = results_.dollar(gsm_,
-                            i_->first, productions_);
-                        const token &token2_ = results_.dollar(gsm_,
-                            i_->second, productions_);
+                        const auto& token1_ = results_.
+                            dollar(gsm_, pair_.first, productions_);
+                        const auto& token2_ = results_.
+                            dollar(gsm_, pair_.second, productions_);
+                        auto& entry_ = captures_[row_.first + index_ + 1];
 
-                        captures_[row_.first + index_ + 1].
-                            push_back(std::make_pair(token1_.first,
+                        entry_.push_back(std::make_pair(token1_.first,
                             token2_.second));
                         ++index_;
                     }
