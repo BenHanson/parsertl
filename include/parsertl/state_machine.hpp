@@ -24,7 +24,7 @@ namespace parsertl
 
         struct entry
         {
-            eaction action;
+            action action;
             id_type param;
 
             entry() :
@@ -33,7 +33,8 @@ namespace parsertl
             {
             }
 
-            entry(const eaction action_, const id_type param_) :
+            // Qualify action to prevent compilation error
+            entry(const parsertl::action action_, const id_type param_) :
                 action(action_),
                 param(param_)
             {
