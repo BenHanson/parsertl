@@ -58,6 +58,7 @@ namespace parsertl
         lex_iterator iter_(first_, second_, lsm_);
         lex_iterator end_;
         basic_match_results<sm_type> results_(iter_->id, gsm_);
+        // Qualify token to prevent arg dependant lookup
         typedef parsertl::token<lex_iterator> token;
         typedef typename token::token_vector token_vector;
         typedef std::multimap<typename sm_type::id_type, token_vector> prod_map;
