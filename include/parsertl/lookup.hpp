@@ -37,8 +37,8 @@ namespace parsertl
             }
             else
             {
-                results_.entry = sm_._table[results_.stack.back() *
-                    sm_._columns + results_.token_id];
+                results_.entry =
+                    sm_.at(results_.entry.param, results_.token_id);
             }
 
             break;
@@ -53,15 +53,13 @@ namespace parsertl
             }
 
             results_.token_id = sm_._rules[results_.entry.param].first;
-            results_.entry = sm_._table[results_.stack.back() * sm_._columns +
-                results_.token_id];
+            results_.entry = sm_.at(results_.stack.back(), results_.token_id);
             break;
         }
         case go_to:
             results_.stack.push_back(results_.entry.param);
             results_.token_id = iter_->id;
-            results_.entry = sm_._table[results_.stack.back() * sm_._columns +
-                results_.token_id];
+            results_.entry = sm_.at(results_.stack.back(), results_.token_id);
             break;
         case accept:
         {
@@ -106,8 +104,8 @@ namespace parsertl
             }
             else
             {
-                results_.entry = sm_._table[results_.stack.back() *
-                    sm_._columns + results_.token_id];
+                results_.entry =
+                    sm_.at(results_.entry.param, results_.token_id);
             }
 
             break;
@@ -119,9 +117,9 @@ namespace parsertl
 
             if (size_)
             {
+                results_.stack.resize(results_.stack.size() - size_);
                 token_.first = (productions_.end() - size_)->first;
                 token_.second = productions_.back().second;
-                results_.stack.resize(results_.stack.size() - size_);
                 productions_.resize(productions_.size() - size_);
             }
             else
@@ -137,8 +135,7 @@ namespace parsertl
             }
 
             results_.token_id = sm_._rules[results_.entry.param].first;
-            results_.entry = sm_._table[results_.stack.back() *
-                sm_._columns + results_.token_id];
+            results_.entry = sm_.at(results_.stack.back(), results_.token_id);
             token_.id = results_.token_id;
             productions_.push_back(token_);
             break;
@@ -146,8 +143,7 @@ namespace parsertl
         case go_to:
             results_.stack.push_back(results_.entry.param);
             results_.token_id = iter_->id;
-            results_.entry = sm_._table[results_.stack.back() * sm_._columns +
-                results_.token_id];
+            results_.entry = sm_.at(results_.stack.back(), results_.token_id);
             break;
         case accept:
         {

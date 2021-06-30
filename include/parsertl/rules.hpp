@@ -962,9 +962,9 @@ namespace parsertl
                         ++brackets_;
                         ++curr_bracket_;
                         bracket_stack_.push(curr_bracket_);
-                        _captures.back().second.push_back(std::
-                            make_pair(static_cast<id_type>(production_.
-                                _rhs.first.size()),
+                        _captures.back().second.push_back(std::pair
+                            <id_type, id_type>(static_cast<id_type>
+                                (production_._rhs.first.size()),
                                 static_cast<id_type>(0)));
                         break;
                     case ')':

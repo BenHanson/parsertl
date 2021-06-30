@@ -7,6 +7,7 @@
 #define PARSERTL_SEARCH_HPP
 
 #include "../../../lexertl/include/lexertl/iterator.hpp"
+#include <map>
 #include "match_results.hpp"
 #include "parse.hpp"
 #include <set>
@@ -76,7 +77,10 @@ namespace parsertl
             captures_.resize((gsm_._captures.empty() ? 0 :
                 gsm_._captures.back().first +
                 gsm_._captures.back().second.size()) + 1);
-            captures_[0].push_back(std::make_pair(iter_->first, iter_->first));
+            captures_[0].push_back(std::pair
+                <typename lex_iterator::value_type::iter_type,
+                typename lex_iterator::value_type::iter_type>
+                (iter_->first, iter_->first));
 
             for (; pi_ != pe_; ++pi_)
             {
@@ -100,7 +104,8 @@ namespace parsertl
                             const token& token2_ = pi_->second[ti_->second];
 
                             captures_[row_.first + index_ + 1].
-                                push_back(std::make_pair(token1_.first,
+                                push_back(std::pair<typename token::iter_type,
+                                    typename token::iter_type>(token1_.first,
                                     token2_.second));
                             ++index_;
                         }
@@ -269,8 +274,8 @@ namespace parsertl
                 break;
             case shift:
             {
-                const typename sm_type::entry* ptr_ =
-                    &sm_._table[results_.entry.param * sm_._columns];
+                const typename sm_type::entry eoi_ =
+                    sm_.at(results_.entry.param);
 
                 results_.stack.push_back(results_.entry.param);
 
@@ -288,15 +293,16 @@ namespace parsertl
                 }
                 else
                 {
-                    results_.entry = ptr_[results_.token_id];
+                    results_.entry =
+                        sm_.at(results_.entry.param, results_.token_id);
                 }
 
-                if (ptr_->action != error)
+                if (eoi_.action != error)
                 {
                     last_eoi_ = iter_;
                     last_results_.stack = results_.stack;
                     last_results_.token_id = 0;
-                    last_results_.entry = *ptr_;
+                    last_results_.entry = eoi_;
                 }
 
                 break;
@@ -317,15 +323,15 @@ namespace parsertl
                 }
 
                 results_.token_id = sm_._rules[results_.entry.param].first;
-                results_.entry = sm_._table[results_.stack.back() *
-                    sm_._columns + results_.token_id];
+                results_.entry =
+                    sm_.at(results_.stack.back(), results_.token_id);
                 break;
             }
             case go_to:
                 results_.stack.push_back(results_.entry.param);
                 results_.token_id = iter_->id;
-                results_.entry = sm_._table[results_.stack.back() *
-                    sm_._columns + results_.token_id];
+                results_.entry =
+                    sm_.at(results_.stack.back(), results_.token_id);
                 break;
             case accept:
             {
@@ -353,8 +359,7 @@ namespace parsertl
                 break;
             case shift:
             {
-                const typename sm_type::entry* ptr_ =
-                    &sm_._table[results_.entry.param * sm_._columns];
+                const typename sm_type::entry eoi_ = sm_.at(results_.entry.param);
 
                 results_.stack.push_back(results_.entry.param);
                 productions_.push_back(typename token_vector::
@@ -374,10 +379,11 @@ namespace parsertl
                 }
                 else
                 {
-                    results_.entry = ptr_[results_.token_id];
+                    results_.entry =
+                        sm_.at(results_.entry.param, results_.token_id);
                 }
 
-                if (ptr_->action != error)
+                if (eoi_.action != error)
                 {
                     last_eoi_ = iter_;
                 }
@@ -411,8 +417,8 @@ namespace parsertl
                 }
 
                 results_.token_id = sm_._rules[results_.entry.param].first;
-                results_.entry = sm_._table[results_.stack.back() *
-                    sm_._columns + results_.token_id];
+                results_.entry =
+                    sm_.at(results_.stack.back(), results_.token_id);
                 token_.id = results_.token_id;
                 productions_.push_back(token_);
                 break;
@@ -420,8 +426,8 @@ namespace parsertl
             case go_to:
                 results_.stack.push_back(results_.entry.param);
                 results_.token_id = iter_->id;
-                results_.entry = sm_._table[results_.stack.back() *
-                    sm_._columns + results_.token_id];
+                results_.entry =
+                    sm_.at(results_.stack.back(), results_.token_id);
                 break;
             case accept:
             {
@@ -466,8 +472,8 @@ namespace parsertl
                     }
                     else
                     {
-                        results_.entry = sm_._table[results_.stack.back() *
-                            sm_._columns + results_.token_id];
+                        results_.entry =
+                            sm_.at(results_.stack.back(), results_.token_id);
                     }
 
                     break;
@@ -487,15 +493,15 @@ namespace parsertl
                     }
 
                     results_.token_id = sm_._rules[results_.entry.param].first;
-                    results_.entry = sm_._table[results_.stack.back() *
-                        sm_._columns + results_.token_id];
+                    results_.entry =
+                        sm_.at(results_.stack.back(), results_.token_id);
                     break;
                 }
                 case go_to:
                     results_.stack.push_back(results_.entry.param);
                     results_.token_id = iter_->id;
-                    results_.entry = sm_._table[results_.stack.back() *
-                        sm_._columns + results_.token_id];
+                    results_.entry =
+                        sm_.at(results_.stack.back(), results_.token_id);
                     break;
                 }
 
@@ -546,8 +552,8 @@ namespace parsertl
                     }
                     else
                     {
-                        results_.entry = sm_._table[results_.stack.back() *
-                            sm_._columns + results_.token_id];
+                        results_.entry =
+                            sm_.at(results_.stack.back(), results_.token_id);
                     }
 
                     break;
@@ -561,8 +567,10 @@ namespace parsertl
                     {
                         if (prod_map_)
                         {
-                            prod_map_->insert(std::make_pair(results_.entry.
-                                param, token_vector(productions_.end() - size_,
+                            prod_map_->insert(std::pair
+                                <typename sm_type::entry::id_type,
+                                token_vector>(results_.entry.param,
+                                    token_vector(productions_.end() - size_,
                                     productions_.end())));
                         }
 
@@ -585,8 +593,8 @@ namespace parsertl
                     }
 
                     results_.token_id = sm_._rules[results_.entry.param].first;
-                    results_.entry = sm_._table[results_.stack.back() *
-                        sm_._columns + results_.token_id];
+                    results_.entry =
+                        sm_.at(results_.stack.back(), results_.token_id);
                     token_.id = results_.token_id;
                     productions_.push_back(token_);
                     break;
@@ -594,8 +602,8 @@ namespace parsertl
                 case go_to:
                     results_.stack.push_back(results_.entry.param);
                     results_.token_id = iter_->id;
-                    results_.entry = sm_._table[results_.stack.back() *
-                        sm_._columns + results_.token_id];
+                    results_.entry =
+                        sm_.at(results_.stack.back(), results_.token_id);
                     break;
                 }
 

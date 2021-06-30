@@ -103,8 +103,8 @@ namespace parsertl
         lrules_.push("INITIAL", "%%", grules_.token_id("'%%'"), "PRODUCTIONS");
         lrules_.push("PRODUCTIONS", ":", grules_.token_id("':'"), ".");
         lrules_.push("PRODUCTIONS", ";", grules_.token_id("';'"), ".");
-        lrules_.push("PRODUCTIONS", "[|]",
-            grules_.token_id("'|'"), "PRODUCTIONS");
+        lrules_.push("PRODUCTIONS", "[|]", grules_.token_id("'|'"),
+            "PRODUCTIONS");
         lrules_.push("PRODUCTIONS", "%empty",
             grules_.token_id("'%empty'"), ".");
         lrules_.push("INITIAL,PRODUCTIONS",

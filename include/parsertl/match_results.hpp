@@ -12,9 +12,10 @@
 
 namespace parsertl
 {
-    template<typename sm_type>
+    template<typename sm_t>
     struct basic_match_results
     {
+        typedef sm_t sm_type;
         typedef typename sm_type::id_type id_type;
         std::vector<id_type> stack;
         id_type token_id;
@@ -54,7 +55,7 @@ namespace parsertl
             }
             else
             {
-                entry = sm_._table[stack.back() * sm_._columns + token_id];
+                entry = sm_.at(stack.back(), token_id);
             }
         }
 
@@ -102,6 +103,7 @@ namespace parsertl
     };
 
     typedef basic_match_results<state_machine> match_results;
+    typedef basic_match_results<uncompressed_state_machine> uncompressed_match_results;
 }
 
 #endif

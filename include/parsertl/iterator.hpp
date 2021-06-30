@@ -37,7 +37,7 @@ namespace parsertl
         {
             _end = end_;
             _captures.push_back(std::vector<std::pair<iter, iter> >());
-            _captures.back().push_back(std::make_pair(start_, start_));
+            _captures.back().push_back(std::pair<iter, iter>(start_, start_));
             lookup();
         }
 

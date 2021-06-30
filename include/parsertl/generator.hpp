@@ -14,12 +14,11 @@
 
 namespace parsertl
 {
-    template<typename rules, typename id_type = std::size_t>
+    template<typename rules, typename sm, typename id_type = std::size_t>
     class basic_generator
     {
     public:
         typedef typename rules::production production;
-        typedef basic_state_machine<id_type> sm;
         typedef typename rules::symbol_vector symbol_vector;
 
         struct prod
@@ -55,7 +54,6 @@ namespace parsertl
             dfa dfa_;
             prod_deque new_grammar_;
             std::size_t new_start_ = static_cast<std::size_t>(~0);
-            rules new_rules_;
             nt_info_vector new_nt_info_;
             std::string warns_;
 
@@ -67,8 +65,8 @@ namespace parsertl
             new_nt_info_[new_start_]._follow_set[0] = 1;
             build_follow_sets(new_grammar_, new_nt_info_);
             sm_.clear();
-            build_table(rules_, dfa_, new_grammar_, new_nt_info_, sm_,
-                warns_);
+            build_table(rules_, dfa_, new_grammar_, new_nt_info_,
+                sm_, warns_);
 
             // Warnings are now an error
             // unless you are explicitly fetching them
@@ -255,8 +253,8 @@ namespace parsertl
                         prod_._rhs_indexes.push_back(size_t_pair(sidx_, sidx_));
                     }
 
-                    for (std::size_t ridx_ = 0, rsize_ = production_._rhs.first.
-                        size(); ridx_ != rsize_; ++ridx_)
+                    for (std::size_t ridx_ = 0, rsize_ = production_._rhs.
+                        first.size(); ridx_ != rsize_; ++ridx_)
                     {
                         const symbol& symbol_ = production_._rhs.first[ridx_];
                         const dfa_state& st_ = dfa_[index_];
@@ -521,7 +519,7 @@ namespace parsertl
             rules_.symbols(symbols_);
             sm_._columns = columns_;
             sm_._rows = dfa_.size();
-            sm_._table.resize(sm_._columns * sm_._rows);
+            sm_.push();
 
             for (typename dfa::const_iterator iter_ = dfa_.begin(),
                 end_ = dfa_.end(); iter_ != end_; ++iter_, ++index_)
@@ -533,23 +531,17 @@ namespace parsertl
                     titer_ != tend_; ++titer_)
                 {
                     const std::size_t id_ = titer_->first;
-                    entry& lhs_ = sm_._table[index_ * columns_ + id_];
-                    entry rhs_;
-
-                    if (id_ < terminals_)
-                    {
+                    entry lhs_ = sm_.at(index_, id_);
+                    const entry rhs_((id_ < terminals_) ?
                         // TERMINAL
-                        rhs_.action = shift;
-                    }
-                    else
-                    {
+                        shift :
                         // NON_TERMINAL
-                        rhs_.action = go_to;
-                    }
+                        go_to,
+                        static_cast<id_type>(titer_->second));
 
-                    rhs_.param = static_cast<id_type>(titer_->second);
-                    fill_entry(rules_, iter_->_closure, symbols_,
-                        lhs_, id_, rhs_, warnings_);
+                    if (fill_entry(rules_, iter_->_closure, symbols_,
+                        lhs_, id_, rhs_, warnings_))
+                        sm_.set(index_, id_, lhs_);
                 }
 
                 // reductions
@@ -579,22 +571,20 @@ namespace parsertl
                             }
                         }
 
-                        for (std::size_t i_ = 0, size_ = follow_set_.size();
-                            i_ < size_; ++i_)
+                        for (std::size_t id_ = 0, size_ = follow_set_.size();
+                            id_ < size_; ++id_)
                         {
-                            if (!follow_set_[i_]) continue;
+                            if (!follow_set_[id_]) continue;
 
-                            entry& lhs_ = sm_._table[index_ * columns_ + i_];
-                            entry rhs_(reduce, static_cast<id_type>
-                            (production_._index));
+                            entry lhs_ = sm_.at(index_, id_);
+                            const entry rhs_(production_._lhs == start_ ?
+                                accept :
+                                reduce,
+                                static_cast<id_type>(production_._index));
 
-                            if (production_._lhs == start_)
-                            {
-                                rhs_.action = accept;
-                            }
-
-                            fill_entry(rules_, iter_->_closure, symbols_,
-                                lhs_, i_, rhs_, warnings_);
+                            if (fill_entry(rules_, iter_->_closure, symbols_,
+                                lhs_, id_, rhs_, warnings_))
+                                sm_.set(index_, id_, lhs_);
                         }
                     }
                 }
@@ -618,8 +608,7 @@ namespace parsertl
 
                 sm_._rules.push_back(typename sm::id_type_pair());
 
-                typename sm::id_type_pair& pair_ =
-                    sm_._rules.back();
+                typename sm::id_type_pair& pair_ = sm_._rules.back();
 
                 pair_.first = static_cast<id_type>(terminals_ +
                     production_._lhs);
@@ -762,11 +751,12 @@ namespace parsertl
             return hash_;
         }
 
-        static void fill_entry(const rules& rules_,
+        static bool fill_entry(const rules& rules_,
             const size_t_pair_vector& config_, const string_vector& symbols_,
             entry& lhs_, const std::size_t id_, const entry& rhs_,
             std::string& warnings_)
         {
+            bool modified_ = false;
             const grammar& grammar_ = rules_.grammar();
             const token_info_vector& tokens_info_ = rules_.tokens_info();
             const std::size_t terminals_ = tokens_info_.size();
@@ -780,6 +770,7 @@ namespace parsertl
                 {
                     // No conflict
                     lhs_ = rhs_;
+                    modified_ = true;
                 }
                 else
                 {
@@ -836,7 +827,7 @@ namespace parsertl
                         switch (lhs_assoc_)
                         {
                         case rules::precedence_assoc:
-                            // Favour shift (leave rhs as it is).
+                            // Favour shift (leave lhs as it is).
                             {
                                 std::ostringstream ss_;
 
@@ -852,17 +843,19 @@ namespace parsertl
 
                             break;
                         case rules::non_assoc:
-                            lhs_.action = error;
-                            lhs_.param = non_associative;
+                            lhs_ = entry(error, non_associative);
+                            modified_ = true;
                             break;
                         case rules::left_assoc:
                             lhs_ = rhs_;
+                            modified_ = true;
                             break;
                         }
                     }
                     else if (rhs_prec_ > lhs_prec_)
                     {
                         lhs_ = rhs_;
+                        modified_ = true;
                     }
                 }
                 else if (lhs_.action == reduce && rhs_.action == reduce)
@@ -875,6 +868,7 @@ namespace parsertl
                     else if (rhs_prec_ > lhs_prec_)
                     {
                         lhs_ = rhs_;
+                        modified_ = true;
                     }
                 }
                 else
@@ -896,6 +890,8 @@ namespace parsertl
                 ss_ << " conflict.\n";
                 warnings_ += ss_.str();
             }
+
+            return modified_;
         }
 
         static void dump_action(const grammar& grammar_,
@@ -980,8 +976,10 @@ namespace parsertl
         }
     };
 
-    typedef basic_generator<rules> generator;
-    typedef basic_generator<wrules> wgenerator;
+    typedef basic_generator<rules, state_machine> generator;
+    typedef basic_generator<rules, uncompressed_state_machine> uncompressed_generator;
+    typedef basic_generator<wrules, state_machine> wgenerator;
+    typedef basic_generator<wrules, uncompressed_state_machine> wuncompressed_generator;
 }
 
 #endif

@@ -39,9 +39,10 @@ namespace parsertl
         typedef parsertl::token<lex_iterator> token;
         typename token::token_vector productions_;
 
+        captures_.clear();
         captures_.resize(gsm_._captures.back().first +
             gsm_._captures.back().second.size() + 1);
-        captures_[0].push_back(std::make_pair(begin_, end_));
+        captures_[0].push_back(std::pair<iterator, iterator>(begin_, end_));
 
         while (results_.entry.action != error &&
             results_.entry.action != accept)
@@ -67,7 +68,8 @@ namespace parsertl
                             i_->second, productions_);
 
                         captures_[row_.first + index_ + 1].
-                            push_back(std::make_pair(token1_.first,
+                            push_back(std::pair<typename token::iter_type,
+                                typename token::iter_type>(token1_.first,
                                 token2_.second));
                         ++index_;
                     }
