@@ -118,11 +118,11 @@ namespace parsertl
 
             for (; pi_ != pe_; ++pi_)
             {
-                typename token::iter_type second_ = pi_->second.back().second;
+                typename token::iter_type sec_ = pi_->second.back().second;
 
-                if (second_ > last_)
+                if (sec_ > last_)
                 {
-                    last_ = second_;
+                    last_ = sec_;
                 }
             }
 
