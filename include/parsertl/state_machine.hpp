@@ -60,6 +60,11 @@ namespace parsertl
                 action = parsertl::error;
                 param = syntax_error;
             }
+
+            bool operator ==(const entry& rhs_) const
+            {
+                return action == rhs_.action && param == rhs_.param;
+            }
         };
 
         base_state_machine() :

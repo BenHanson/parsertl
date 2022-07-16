@@ -100,6 +100,11 @@ namespace parsertl
         {
             return sm._rules[index_].second.size();
         }
+
+        bool operator ==(const basic_match_results& rhs_) const
+        {
+            return stack == rhs_.stack && token_id == rhs_.token_id && entry == rhs_.entry;
+        }
     };
 
     typedef basic_match_results<state_machine> match_results;
