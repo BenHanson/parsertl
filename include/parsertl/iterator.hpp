@@ -1,5 +1,5 @@
 // iterator.hpp
-// Copyright (c) 2022 Ben Hanson (http://www.benhanson.net/)
+// Copyright (c) 2022-2023 Ben Hanson (http://www.benhanson.net/)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file licence_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -12,34 +12,44 @@
 
 namespace parsertl
 {
-    template<typename iter, typename lsm_type, typename gsm_type,
+    template<typename lexer_iterator, typename sm_type,
         typename id_type = std::size_t>
         class iterator
     {
     public:
-        typedef basic_match_results<gsm_type> results;
+        typedef basic_match_results<sm_type> results;
         typedef results value_type;
         typedef ptrdiff_t difference_type;
         typedef const value_type* pointer;
         typedef const value_type& reference;
         typedef std::forward_iterator_tag iterator_category;
 
-        typedef lexertl::iterator<iter, lsm_type,
-            lexertl::match_results<iter> > lex_iterator;
         // Qualify token to prevent arg dependant lookup
-        typedef parsertl::token<lex_iterator> token;
+        typedef parsertl::token<lexer_iterator> token;
         typedef typename token::token_vector token_vector;
 
         iterator() :
-            _gsm(0)
+            _sm(0)
         {
         }
 
-        iterator(const iter& first_, const iter& second_,
-            const lsm_type& lsm_, const gsm_type& gsm_) :
-            _iter(first_, second_, lsm_),
-            _results(_iter->id, gsm_),
-            _gsm(&gsm_)
+        iterator(const lexer_iterator& iter_, const sm_type& sm_) :
+            _iter(iter_),
+            _results(_iter->id, sm_),
+            _sm(&sm_)
+        {
+            // The first action can only ever be reduce
+            // if the grammar treats no input as valid.
+            if (_results.entry.action != reduce)
+                lookup();
+        }
+
+        iterator(const lexer_iterator& iter_, const sm_type& sm_,
+            const std::size_t reserved_) :
+            _iter(iter_),
+            _results(_iter->id, sm_, reserved_),
+            _productions(reserved_),
+            _sm(&sm_)
         {
             // The first action can only ever be reduce
             // if the grammar treats no input as valid.
@@ -49,7 +59,7 @@ namespace parsertl
 
         typename token_vector::value_type dollar(const std::size_t index_) const
         {
-            return _results.dollar(*_gsm, index_, _productions);
+            return _results.dollar(index_, *_sm, _productions);
         }
 
         iterator& operator ++()
@@ -78,8 +88,8 @@ namespace parsertl
 
         bool operator ==(const iterator& rhs_) const
         {
-            return _gsm == rhs_._gsm &&
-                (_gsm == 0 ? true :
+            return _sm == rhs_._sm &&
+                (_sm == 0 ? true :
                     _results == rhs_._results);
         }
 
@@ -89,17 +99,17 @@ namespace parsertl
         }
 
     private:
-        lex_iterator _iter;
-        basic_match_results<gsm_type> _results;
+        lexer_iterator _iter;
+        basic_match_results<sm_type> _results;
         token_vector _productions;
-        const gsm_type* _gsm;
+        const sm_type* _sm;
 
         void lookup()
         {
             // do while because we need to move past the current reduce action
             do
             {
-                parsertl::lookup(*_gsm, _iter, _results, _productions);
+                parsertl::lookup(_iter, *_sm, _results, _productions);
             } while (_results.entry.action == shift ||
                 _results.entry.action == go_to);
 
@@ -107,20 +117,18 @@ namespace parsertl
             {
             case accept:
             case error:
-                _gsm = 0;
+                _sm = 0;
+                break;
+            default:
                 break;
             }
         }
     };
 
-    typedef iterator<std::string::const_iterator, lexertl::state_machine,
-        state_machine> siterator;
-    typedef iterator<const char*, lexertl::state_machine,
-        state_machine> citerator;
-    typedef iterator<std::wstring::const_iterator, lexertl::wstate_machine,
-        state_machine> wsiterator;
-    typedef iterator<const wchar_t*, lexertl::wstate_machine,
-        state_machine> wciterator;
+    typedef iterator<lexertl::siterator, state_machine> siterator;
+    typedef iterator<lexertl::citerator, state_machine> citerator;
+    typedef iterator<lexertl::wsiterator, state_machine> wsiterator;
+    typedef iterator<lexertl::wciterator, state_machine> wciterator;
 }
 
 #endif

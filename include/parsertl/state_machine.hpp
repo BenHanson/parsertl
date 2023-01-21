@@ -1,5 +1,5 @@
 // state_machine.hpp
-// Copyright (c) 2014-2020 Ben Hanson (http://www.benhanson.net/)
+// Copyright (c) 2014-2023 Ben Hanson (http://www.benhanson.net/)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file licence_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -117,8 +117,8 @@ namespace parsertl
         entry at(const std::size_t state_) const
         {
             const pair_vector& s_ = _table[state_];
-            typename pair_vector::iterator iter_ = std::find_if(s_.begin(),
-                s_.end(), pred(0));
+            typename pair_vector::const_iterator iter_ =
+                std::find_if(s_.begin(), s_.end(), pred(0));
 
             if (iter_ == s_.end())
                 return entry();
@@ -129,8 +129,8 @@ namespace parsertl
         entry at(const std::size_t state_, const std::size_t token_id_) const
         {
             const pair_vector& s_ = _table[state_];
-            typename pair_vector::const_iterator iter_ = std::find_if(s_.begin(),
-                s_.end(), pred(token_id_));
+            typename pair_vector::const_iterator iter_ =
+                std::find_if(s_.begin(), s_.end(), pred(token_id_));
 
             if (iter_ == s_.end())
                 return entry();
@@ -228,7 +228,8 @@ namespace parsertl
     };
 
     typedef basic_state_machine<std::size_t> state_machine;
-    typedef basic_uncompressed_state_machine<std::size_t> uncompressed_state_machine;
+    typedef basic_uncompressed_state_machine<std::size_t>
+        uncompressed_state_machine;
 }
 
 #endif

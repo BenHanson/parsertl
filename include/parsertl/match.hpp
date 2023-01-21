@@ -1,5 +1,5 @@
 // match.hpp
-// Copyright (c) 2018 Ben Hanson (http://www.benhanson.net/)
+// Copyright (c) 2018-2023 Ben Hanson (http://www.benhanson.net/)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file licence_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -13,59 +13,51 @@
 namespace parsertl
 {
     // Parse entire sequence and return boolean
-    template<typename iterator, typename sm_type, typename lsm>
-    bool match(iterator begin_, iterator end_, const lsm& lsm_,
-        const sm_type& gsm_)
+    template<typename lexer_iterator, typename sm_type>
+    bool match(lexer_iterator iter_, const sm_type& sm_)
     {
-        typedef lexertl::iterator<iterator, lsm,
-            lexertl::match_results<iterator> > lex_iterator;
-        lex_iterator iter_(begin_, end_, lsm_);
-        basic_match_results<sm_type> results_(iter_->id, gsm_);
+        basic_match_results<sm_type> results_(iter_->id, sm_);
 
-        return parse(gsm_, iter_, results_);
+        return parse(iter_, sm_, results_);
     }
 
-    template<typename iterator, typename captures, typename sm_type,
-        typename lsm>
-        bool match(iterator begin_, iterator end_, captures& captures_,
-            lsm& lsm_, const sm_type& gsm_)
+    template<typename lexer_iterator, typename sm_type, typename captures>
+    bool match(lexer_iterator iter_, const sm_type& sm_, captures& captures_)
     {
-        typedef lexertl::iterator<iterator, lsm,
-            lexertl::match_results<iterator> > lex_iterator;
-        typedef typename sm_type::capture_vector capture_vector;
-        lex_iterator iter_(begin_, end_, lsm_);
-        basic_match_results<sm_type> results_(iter_->id, gsm_);
+        basic_match_results<sm_type> results_(iter_->id, sm_);
         // Qualify token to prevent arg dependant lookup
-        typedef parsertl::token<lex_iterator> token;
+        typedef parsertl::token<lexer_iterator> token;
+        typedef lexer_iterator::value_type::iter_type iter_type;
         typename token::token_vector productions_;
 
         captures_.clear();
-        captures_.resize(gsm_._captures.back().first +
-            gsm_._captures.back().second.size() + 1);
-        captures_[0].push_back(std::pair<iterator, iterator>(begin_, end_));
+        captures_.resize(sm_._captures.back().first +
+            sm_._captures.back().second.size() + 1);
+        captures_[0].push_back(std::pair<iter_type, iter_type>
+            (iter_->first, iter_->second));
 
         while (results_.entry.action != error &&
             results_.entry.action != accept)
         {
             if (results_.entry.action == reduce)
             {
-                const std::pair<std::size_t, capture_vector>& row_ =
-                    gsm_._captures[results_.entry.param];
+                const typename sm_type::capture_vec_pair& row_ =
+                    sm_._captures[results_.entry.param];
 
                 if (!row_.second.empty())
                 {
                     std::size_t index_ = 0;
-                    typename capture_vector::const_iterator i_ =
+                    typename sm_type::capture_vector::const_iterator i_ =
                         row_.second.begin();
-                    typename capture_vector::const_iterator e_ =
+                    typename sm_type::capture_vector::const_iterator e_ =
                         row_.second.end();
 
                     for (; i_ != e_; ++i_)
                     {
-                        const token& token1_ = results_.dollar(gsm_,
-                            i_->first, productions_);
-                        const token& token2_ = results_.dollar(gsm_,
-                            i_->second, productions_);
+                        const token& token1_ = results_.dollar(i_->first, sm_,
+                            productions_);
+                        const token& token2_ = results_.dollar(i_->second, sm_,
+                            productions_);
 
                         captures_[row_.first + index_ + 1].
                             push_back(std::pair<typename token::iter_type,
@@ -76,7 +68,7 @@ namespace parsertl
                 }
             }
 
-            lookup(gsm_, iter_, results_, productions_);
+            lookup(iter_, sm_, results_, productions_);
         }
 
         return results_.entry.action == accept;

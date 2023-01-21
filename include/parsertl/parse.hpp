@@ -1,5 +1,5 @@
 // parse.hpp
-// Copyright (c) 2017-2020 Ben Hanson (http://www.benhanson.net/)
+// Copyright (c) 2017-2023 Ben Hanson (http://www.benhanson.net/)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file licence_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -12,16 +12,14 @@
 namespace parsertl
 {
     // Parse entire sequence and return boolean
-    template<typename sm_type, typename iterator>
-    bool parse(const sm_type& sm_, iterator& iter_,
+    template<typename lexer_iterator, typename sm_type>
+    bool parse(lexer_iterator& iter_, const sm_type& sm_,
         basic_match_results<sm_type>& results_)
     {
         while (results_.entry.action != error)
         {
             switch (results_.entry.action)
             {
-            case error:
-                break;
             case shift:
                 results_.stack.push_back(results_.entry.param);
 
@@ -32,7 +30,7 @@ namespace parsertl
 
                 results_.token_id = iter_->id;
 
-                if (results_.token_id == iterator::value_type::npos())
+                if (results_.token_id == lexer_iterator::value_type::npos())
                 {
                     results_.entry.action = error;
                     results_.entry.param = unknown_token;
@@ -64,6 +62,10 @@ namespace parsertl
                 results_.token_id = iter_->id;
                 results_.entry =
                     sm_.at(results_.stack.back(), results_.token_id);
+                break;
+            default:
+                // accept
+                // error
                 break;
             }
 

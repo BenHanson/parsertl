@@ -1,5 +1,5 @@
 // lookup.hpp
-// Copyright (c) 2017-2020 Ben Hanson (http://www.benhanson.net/)
+// Copyright (c) 2017-2023 Ben Hanson (http://www.benhanson.net/)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file licence_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -12,14 +12,12 @@
 namespace parsertl
 {
     // parse sequence but do not keep track of productions
-    template<typename sm_type, typename iterator>
-    void lookup(const sm_type& sm_, iterator& iter_,
+    template<typename lexer_iterator, typename sm_type>
+    void lookup(lexer_iterator& iter_, const sm_type& sm_,
         basic_match_results<sm_type>& results_)
     {
         switch (results_.entry.action)
         {
-        case error:
-            break;
         case shift:
             results_.stack.push_back(results_.entry.param);
 
@@ -30,7 +28,7 @@ namespace parsertl
 
             results_.token_id = iter_->id;
 
-            if (results_.token_id == iterator::value_type::npos())
+            if (results_.token_id == lexer_iterator::value_type::npos())
             {
                 results_.entry.action = error;
                 results_.entry.param = unknown_token;
@@ -73,18 +71,19 @@ namespace parsertl
 
             break;
         }
+        default:
+            // error
+            break;
         }
     }
 
     // Parse sequence and maintain production vector
-    template<typename sm_type, typename iterator, typename token_vector>
-    void lookup(const sm_type& sm_, iterator& iter_,
+    template<typename lexer_iterator, typename sm_type, typename token_vector>
+    void lookup(lexer_iterator& iter_, const sm_type& sm_,
         basic_match_results<sm_type>& results_, token_vector& productions_)
     {
         switch (results_.entry.action)
         {
-        case error:
-            break;
         case shift:
             results_.stack.push_back(results_.entry.param);
             productions_.push_back(typename token_vector::value_type(iter_->id,
@@ -97,7 +96,7 @@ namespace parsertl
 
             results_.token_id = iter_->id;
 
-            if (results_.token_id == iterator::value_type::npos())
+            if (results_.token_id == lexer_iterator::value_type::npos())
             {
                 results_.entry.action = error;
                 results_.entry.param = unknown_token;
@@ -157,6 +156,9 @@ namespace parsertl
 
             break;
         }
+        default:
+            // error
+            break;
         }
     }
 }

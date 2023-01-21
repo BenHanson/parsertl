@@ -1,5 +1,5 @@
 // match_results.hpp
-// Copyright (c) 2017-2020 Ben Hanson (http://www.benhanson.net/)
+// Copyright (c) 2017-2023 Ben Hanson (http://www.benhanson.net/)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file licence_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -29,9 +29,22 @@ namespace parsertl
             entry.param = unknown_token;
         }
 
+        basic_match_results(const std::size_t reserved_) :
+            stack(reserved_)
+        {
+            basic_match_results();
+        }
+
         basic_match_results(const id_type token_id_, const sm_type& sm_)
         {
             reset(token_id_, sm_);
+        }
+
+        basic_match_results(const id_type token_id_, const sm_type& sm_,
+            const std::size_t reserved_) :
+            stack(reserved_)
+        {
+            basic_match_results(token_id_, sm_);
         }
 
         void clear()
@@ -70,8 +83,8 @@ namespace parsertl
         }
 
         template<typename token_vector>
-        typename token_vector::value_type& dollar(const sm_type& sm_,
-            const std::size_t index_, token_vector& productions) const
+        typename token_vector::value_type& dollar(const std::size_t index_,
+            const sm_type& sm_, token_vector& productions) const
         {
             if (entry.action != reduce)
             {
@@ -83,8 +96,8 @@ namespace parsertl
         }
 
         template<typename token_vector>
-        const typename token_vector::value_type& dollar(const sm_type& sm_,
-            const std::size_t index_, const token_vector& productions) const
+        const typename token_vector::value_type& dollar(const std::size_t index_,
+            const sm_type& sm_, const token_vector& productions) const
         {
             if (entry.action != reduce)
             {
@@ -103,12 +116,15 @@ namespace parsertl
 
         bool operator ==(const basic_match_results& rhs_) const
         {
-            return stack == rhs_.stack && token_id == rhs_.token_id && entry == rhs_.entry;
+            return stack == rhs_.stack &&
+                token_id == rhs_.token_id &&
+                entry == rhs_.entry;
         }
     };
 
     typedef basic_match_results<state_machine> match_results;
-    typedef basic_match_results<uncompressed_state_machine> uncompressed_match_results;
+    typedef basic_match_results<uncompressed_state_machine>
+        uncompressed_match_results;
 }
 
 #endif

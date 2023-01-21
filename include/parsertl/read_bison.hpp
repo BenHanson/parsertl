@@ -1,5 +1,5 @@
 // read_bison.hpp
-// Copyright (c) 2014-2020 Ben Hanson (http://www.benhanson.net/)
+// Copyright (c) 2014-2023 Ben Hanson (http://www.benhanson.net/)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file licence_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -128,20 +128,19 @@ namespace parsertl
         lexertl::generator::build(lrules_, lsm_);
 
         lexertl::criterator iter_(start_, end_, lsm_);
-        using token = token<lexertl::criterator>;
+        typedef token<lexertl::criterator> token;
         typename token::token_vector productions_;
         match_results results_(iter_->id, gsm_);
 
         while (results_.entry.action != error &&
             results_.entry.action != accept)
         {
-            switch (results_.entry.action)
+            if (results_.entry.action == reduce)
             {
-            case reduce:
                 if (results_.entry.param == token_index_)
                 {
                     const token& token_ =
-                        results_.dollar(gsm_, 1, productions_);
+                        results_.dollar(1, gsm_, productions_);
                     const std::string str_(token_.first, token_.second);
 
                     rules_.token(str_.c_str());
@@ -149,7 +148,7 @@ namespace parsertl
                 else if (results_.entry.param == left_index_)
                 {
                     const token& token_ =
-                        results_.dollar(gsm_, 1, productions_);
+                        results_.dollar(1, gsm_, productions_);
                     const std::string str_(token_.first, token_.second);
 
                     rules_.left(str_.c_str());
@@ -157,7 +156,7 @@ namespace parsertl
                 else if (results_.entry.param == right_index_)
                 {
                     const token& token_ =
-                        results_.dollar(gsm_, 1, productions_);
+                        results_.dollar(1, gsm_, productions_);
                     const std::string str_(token_.first, token_.second);
 
                     rules_.right(str_.c_str());
@@ -165,7 +164,7 @@ namespace parsertl
                 else if (results_.entry.param == nonassoc_index_)
                 {
                     const token& token_ =
-                        results_.dollar(gsm_, 1, productions_);
+                        results_.dollar(1, gsm_, productions_);
                     const std::string str_(token_.first, token_.second);
 
                     rules_.nonassoc(str_.c_str());
@@ -173,7 +172,7 @@ namespace parsertl
                 else if (results_.entry.param == precedence_index_)
                 {
                     const token& token_ =
-                        results_.dollar(gsm_, 1, productions_);
+                        results_.dollar(1, gsm_, productions_);
                     const std::string str_(token_.first, token_.second);
 
                     rules_.precedence(str_.c_str());
@@ -181,25 +180,23 @@ namespace parsertl
                 else if (results_.entry.param == start_index_)
                 {
                     const token& name_ =
-                        results_.dollar(gsm_, 1, productions_);
+                        results_.dollar(1, gsm_, productions_);
 
                     rules_.start(std::string(name_.first,
                         name_.second).c_str());
                 }
                 else if (results_.entry.param == prod_index_)
                 {
-                    const token& lhs_ = results_.dollar(gsm_, 0, productions_);
-                    const token& rhs_ = results_.dollar(gsm_, 2, productions_);
+                    const token& lhs_ = results_.dollar(0, gsm_, productions_);
+                    const token& rhs_ = results_.dollar(2, gsm_, productions_);
                     const std::string lhs_str_(lhs_.first, lhs_.second);
                     const std::string rhs_str_(rhs_.first, rhs_.second);
 
                     rules_.push(lhs_str_.c_str(), rhs_str_.c_str());
                 }
-
-                break;
             }
 
-            lookup(gsm_, iter_, results_, productions_);
+            lookup(iter_, gsm_, results_, productions_);
         }
 
         if (results_.entry.action == error)

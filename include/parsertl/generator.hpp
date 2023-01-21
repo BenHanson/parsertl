@@ -1,5 +1,5 @@
 // generator.hpp
-// Copyright (c) 2014-2020 Ben Hanson (http://www.benhanson.net/)
+// Copyright (c) 2014-2023 Ben Hanson (http://www.benhanson.net/)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file licence_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -977,9 +977,11 @@ namespace parsertl
     };
 
     typedef basic_generator<rules, state_machine> generator;
-    typedef basic_generator<rules, uncompressed_state_machine> uncompressed_generator;
+    typedef basic_generator<rules, uncompressed_state_machine>
+        uncompressed_generator;
     typedef basic_generator<wrules, state_machine> wgenerator;
-    typedef basic_generator<wrules, uncompressed_state_machine> wuncompressed_generator;
+    typedef basic_generator<wrules, uncompressed_state_machine>
+        wuncompressed_generator;
 }
 
 #endif

@@ -1,5 +1,5 @@
 // iterator.hpp
-// Copyright (c) 2018 Ben Hanson (http://www.benhanson.net/)
+// Copyright (c) 2018-2023 Ben Hanson (http://www.benhanson.net/)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file licence_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -11,33 +11,32 @@
 
 namespace parsertl
 {
-    template<typename iter, typename lsm_type, typename gsm_type,
+    template<typename lexer_iterator, typename sm_type,
         typename id_type = std::size_t>
-        class search_iterator
+    class search_iterator
     {
     public:
-        typedef std::vector<std::vector<std::pair<iter, iter> > > results;
-        typedef results value_type;
+        typedef typename lexer_iterator::value_type::iter_type iter_type;
+        typedef std::vector<std::vector<std::pair<iter_type, iter_type> > >
+            value_type;
         typedef ptrdiff_t difference_type;
         typedef const value_type* pointer;
         typedef const value_type& reference;
         typedef std::forward_iterator_tag iterator_category;
 
         search_iterator() :
-            _end(),
-            _lsm(0),
-            _gsm(0)
+            _sm(0)
         {
         }
 
-        search_iterator(const iter& first_, const iter& second_, const lsm_type& lsm_,
-            const gsm_type& gsm_) :
-            _end(second_),
-            _lsm(&lsm_),
-            _gsm(&gsm_)
+        search_iterator(const lexer_iterator& iter_, const sm_type& sm_) :
+            _iter(iter_),
+            _sm(&sm_)
         {
-            _captures.push_back(std::vector<std::pair<iter, iter> >());
-            _captures.back().push_back(std::pair<iter, iter>(first_, first_));
+            _captures.push_back(std::vector<std::pair
+                <iter_type, iter_type> >());
+            _captures.back().push_back(std::pair<iter_type, iter_type>
+                (iter_->first, iter_->first));
             lookup();
         }
 
@@ -67,8 +66,8 @@ namespace parsertl
 
         bool operator ==(const search_iterator& rhs_) const
         {
-            return _lsm == rhs_._lsm && _gsm == rhs_._gsm &&
-                (_gsm == 0 ? true :
+            return _sm == rhs_._sm &&
+                (_sm == 0 ? true :
                     _captures == rhs_._captures);
         }
 
@@ -78,32 +77,34 @@ namespace parsertl
         }
 
     private:
-        iter _end;
-        results _captures;
-        const lsm_type* _lsm;
-        const gsm_type* _gsm;
+        lexer_iterator _iter;
+        value_type _captures;
+        const sm_type* _sm;
 
         void lookup()
         {
-            const std::pair<iter, iter> pair_ = _captures[0].back();
+            lexer_iterator end;
 
             _captures.clear();
 
-            if (!search(pair_.second, _end, _captures, *_lsm, *_gsm))
+            if (search(_iter, end, *_sm, _captures))
             {
-                _lsm = 0;
-                _gsm = 0;
+                _iter = end;
+            }
+            else
+            {
+                _sm = 0;
             }
         }
     };
 
-    typedef iterator<std::string::const_iterator, lexertl::state_machine,
-        state_machine> ssearch_iterator;
-    typedef iterator<const char*, lexertl::state_machine, state_machine>
+    typedef search_iterator<lexertl::siterator, state_machine>
+        ssearch_iterator;
+    typedef search_iterator<lexertl::citerator, state_machine>
         csearch_iterator;
-    typedef iterator<std::wstring::const_iterator, lexertl::state_machine,
-        state_machine> wssearch_iterator;
-    typedef iterator<const wchar_t*, lexertl::state_machine, state_machine>
+    typedef search_iterator<lexertl::wsiterator, state_machine>
+        wssearch_iterator;
+    typedef search_iterator<lexertl::wciterator, state_machine>
         wcsearch_iterator;
 }
 
