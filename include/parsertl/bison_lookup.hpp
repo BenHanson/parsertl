@@ -89,10 +89,8 @@ namespace parsertl
         case shift:
             results_.stack.push_back(results_.entry.param);
 
-            if (results_.token_id != 0)
-            {
+            if (iter_->id != 0)
                 ++iter_;
-            }
 
             results_.token_id = iter_->id;
 
@@ -152,10 +150,8 @@ namespace parsertl
             productions_.push_back(typename token_vector::value_type(iter_->id,
                 iter_->first, iter_->second));
 
-            if (results_.token_id != 0)
-            {
+            if (iter_->id != 0)
                 ++iter_;
-            }
 
             results_.token_id =
                 static_cast<typename results::id_type>(iter_->id);
