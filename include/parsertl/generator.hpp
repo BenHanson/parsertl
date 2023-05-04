@@ -74,7 +74,7 @@ namespace parsertl
                 if (warnings_)
                     *warnings_ = warns_;
                 else
-                    throw std::runtime_error(warns_);
+                    throw runtime_error(warns_);
 
             // If you get an assert here then your id_type
             // is too small for the table.
