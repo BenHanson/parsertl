@@ -18,12 +18,13 @@ namespace parsertl
     struct base_state_machine
     {
         typedef id_ty id_type;
-        typedef std::vector<std::pair<id_type, id_type> > capture_vector;
-        typedef std::pair<std::size_t, capture_vector> capture_vec_pair;
-        typedef std::deque<capture_vec_pair> captures_deque;
+        typedef std::pair<id_type, id_type> id_type_pair;
+        typedef std::vector<id_type_pair> capture_vector;
+        typedef std::pair<std::size_t, capture_vector> capture;
+        typedef std::deque<capture> captures_deque;
         typedef std::vector<id_type> id_type_vector;
-        typedef std::pair<id_type, id_type_vector> id_type_pair;
-        typedef std::deque<id_type_pair> rules;
+        typedef std::pair<id_type, id_type_vector> id_type_vector_pair;
+        typedef std::deque<id_type_vector_pair> rules;
 
         std::size_t _columns;
         std::size_t _rows;
@@ -88,7 +89,7 @@ namespace parsertl
 
     // Uses a vector of vectors for the state machine
     template<typename id_ty>
-    class basic_state_machine : public base_state_machine<id_ty>
+    struct basic_state_machine : base_state_machine<id_ty>
     {
     public:
         typedef base_state_machine<id_ty> base_sm;
@@ -97,6 +98,8 @@ namespace parsertl
         typedef std::pair<id_type, entry> state_pair;
         typedef std::vector<state_pair> pair_vector;
         typedef std::vector<pair_vector> table;
+
+        table _table;
 
         // No need to specify constructor.
         virtual ~basic_state_machine()
@@ -172,19 +175,18 @@ namespace parsertl
                 return _token_id == pair.first;
             }
         };
-
-        table _table;
     };
 
     // Uses uncompressed 2d array for state machine
     template<typename id_ty>
-    class basic_uncompressed_state_machine : public base_state_machine<id_ty>
+    struct basic_uncompressed_state_machine : base_state_machine<id_ty>
     {
-    public:
         typedef base_state_machine<id_ty> base_sm;
         typedef id_ty id_type;
         typedef typename base_sm::entry entry;
         typedef std::vector<entry> table;
+
+        table _table;
 
         // No need to specify constructor.
         virtual ~basic_uncompressed_state_machine()
@@ -222,9 +224,6 @@ namespace parsertl
         {
             _table.resize(base_sm::_columns * base_sm::_rows);
         }
-
-    private:
-        table _table;
     };
 
     typedef basic_state_machine<std::size_t> state_machine;

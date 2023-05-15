@@ -606,9 +606,9 @@ namespace parsertl
                 typename symbol_vector::const_iterator rhs_end_ =
                     production_._rhs.first.end();
 
-                sm_._rules.push_back(typename sm::id_type_pair());
+                sm_._rules.push_back(typename sm::id_type_vector_pair());
 
-                typename sm::id_type_pair& pair_ = sm_._rules.back();
+                typename sm::id_type_vector_pair& pair_ = sm_._rules.back();
 
                 pair_.first = static_cast<id_type>(terminals_ +
                     production_._lhs);
