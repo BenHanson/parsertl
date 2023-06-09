@@ -6,7 +6,6 @@
 #ifndef PARSERTL_MATCH_HPP
 #define PARSERTL_MATCH_HPP
 
-#include "../../../lexertl/include/lexertl/iterator.hpp"
 #include "lookup.hpp"
 #include "parse.hpp"
 
