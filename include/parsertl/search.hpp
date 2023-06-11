@@ -6,6 +6,7 @@
 #ifndef PARSERTL_SEARCH_HPP
 #define PARSERTL_SEARCH_HPP
 
+#include "capture.hpp"
 #include <map>
 #include "match_results.hpp"
 #include "parse.hpp"
@@ -62,16 +63,14 @@ namespace parsertl
             captures_.resize((sm_._captures.empty() ? 0 :
                 sm_._captures.back().first +
                 sm_._captures.back().second.size()) + 1);
-            captures_[0].push_back(std::pair
-                <typename lexer_iterator::value_type::iter_type,
-                typename lexer_iterator::value_type::iter_type>
+            captures_[0].push_back(capture<typename token::iter_type>
                 (iter_->first, iter_->first));
 
             for (; pi_ != pe_; ++pi_)
             {
                 if (sm_._captures.size() > pi_->first)
                 {
-                    const typename sm_type::capture_vec_pair& row_ =
+                    const typename sm_type::capture& row_ =
                         sm_._captures[pi_->first];
 
                     if (!row_.second.empty())
@@ -89,9 +88,8 @@ namespace parsertl
                             const token& token2_ = pi_->second[ti_->second];
 
                             captures_[row_.first + index_ + 1].
-                                push_back(std::pair<typename token::iter_type,
-                                    typename token::iter_type>(token1_.first,
-                                    token2_.second));
+                                push_back(capture<typename token::iter_type>
+                                    (token1_.first, token2_.second));
                             ++index_;
                         }
                     }

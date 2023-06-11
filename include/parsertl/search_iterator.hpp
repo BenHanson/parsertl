@@ -6,6 +6,7 @@
 #ifndef PARSERTL_SEARCH_ITERATOR_HPP
 #define PARSERTL_SEARCH_ITERATOR_HPP
 
+#include "capture.hpp"
 #include "../../../lexertl/include/lexertl/iterator.hpp"
 #include "match_results.hpp"
 #include "search.hpp"
@@ -18,8 +19,8 @@ namespace parsertl
     {
     public:
         typedef typename lexer_iterator::value_type::iter_type iter_type;
-        typedef std::vector<std::vector<std::pair<iter_type, iter_type> > >
-            value_type;
+        typedef std::vector<std::vector<capture<iter_type> > > results;
+        typedef results value_type;
         typedef ptrdiff_t difference_type;
         typedef const value_type* pointer;
         typedef const value_type& reference;
@@ -34,9 +35,8 @@ namespace parsertl
             _iter(iter_),
             _sm(&sm_)
         {
-            _captures.push_back(std::vector<std::pair
-                <iter_type, iter_type> >());
-            _captures.back().push_back(std::pair<iter_type, iter_type>
+            _captures.push_back(std::vector<capture<iter_type> >());
+            _captures.back().push_back(capture<iter_type>
                 (iter_->first, iter_->first));
             lookup();
         }
@@ -79,7 +79,7 @@ namespace parsertl
 
     private:
         lexer_iterator _iter;
-        value_type _captures;
+        results _captures;
         const sm_type* _sm;
 
         void lookup()
