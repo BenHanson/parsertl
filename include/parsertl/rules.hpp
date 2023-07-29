@@ -325,7 +325,7 @@ namespace parsertl
                     {
                     case rhs_or_2_idx:
                     {
-                        // rhs_or: rhs_or '|' opt_list;
+                        // rhs_or: rhs_or '|' opt_list
                         const std::size_t size_ =
                             _ebnf_tables.yyr2[results_.entry.param];
                         const std::size_t idx_ = productions_.size() - size_;
@@ -346,13 +346,9 @@ namespace parsertl
 
                         break;
                     }
-                    case opt_list_1_idx:
-                        // opt_list: ;
-                        rhs_stack_.push(string());
-                        break;
-                    case opt_list_3_idx:
+                    case opt_prec_list_idx:
                     {
-                        // opt_list: rhs_list opt_prec;
+                        // opt_prec_list: opt_list opt_prec
                         const std::size_t size_ =
                             _ebnf_tables.yyr2[results_.entry.param];
                         const std::size_t idx_ = productions_.size() - size_;
@@ -369,9 +365,13 @@ namespace parsertl
 
                         break;
                     }
+                    case opt_list_1_idx:
+                        // opt_list: %empty
+                        rhs_stack_.push(string());
+                        break;
                     case rhs_list_2_idx:
                     {
-                        // rhs_list: rhs_list rhs;
+                        // rhs_list: rhs_list rhs
                         string r_ = rhs_stack_.top();
 
                         rhs_stack_.pop();
@@ -382,9 +382,9 @@ namespace parsertl
                     case identifier_idx:
                     case terminal_idx:
                     {
-                        // opt_list: %empty;
-                        // rhs: IDENTIFIER;
-                        // rhs: TERMINAL;
+                        // opt_list: %empty
+                        // rhs: IDENTIFIER
+                        // rhs: TERMINAL
                         const std::size_t size_ =
                             _ebnf_tables.yyr2[results_.entry.param];
                         const std::size_t idx_ = productions_.size() - size_;
@@ -396,8 +396,8 @@ namespace parsertl
                     case optional_1_idx:
                     case optional_2_idx:
                     {
-                        // rhs: '[' rhs_or ']';
-                        // rhs: rhs '?';
+                        // rhs: '[' rhs_or ']'
+                        // rhs: rhs '?'
                         std::size_t& counter_ = _new_rule_ids[lhs_];
                         std::basic_ostringstream<char_type> ss_;
                         std::pair<string, string> pair_;
@@ -414,8 +414,8 @@ namespace parsertl
                     case zom_1_idx:
                     case zom_2_idx:
                     {
-                        // rhs: '{' rhs_or '}';
-                        // rhs: rhs '*';
+                        // rhs: '{' rhs_or '}'
+                        // rhs: rhs '*'
                         std::size_t& counter_ = _new_rule_ids[lhs_];
                         std::basic_ostringstream<char_type> ss_;
                         std::pair<string, string> pair_;
@@ -433,8 +433,8 @@ namespace parsertl
                     case oom_1_idx:
                     case oom_2_idx:
                     {
-                        // rhs: '{' rhs_or '}' '-';
-                        // rhs: rhs '+';
+                        // rhs: '{' rhs_or '}' '-'
+                        // rhs: rhs '+'
                         std::size_t& counter_ = _new_rule_ids[lhs_];
                         std::basic_ostringstream<char_type> ss_;
                         std::pair<string, string> pair_;
@@ -451,7 +451,7 @@ namespace parsertl
                     }
                     case bracketed_idx:
                     {
-                        // rhs: '(' rhs_or ')';
+                        // rhs: '(' rhs_or ')'
                         std::size_t& counter_ = _new_rule_ids[lhs_];
                         std::basic_ostringstream<char_type> ss_;
                         std::pair<string, string> pair_;
@@ -478,8 +478,8 @@ namespace parsertl
                     case prec_ident_idx:
                     case prec_term_idx:
                     {
-                        // opt_prec: PREC IDENTIFIER;
-                        // opt_prec: PREC TERMINAL;
+                        // opt_prec: PREC IDENTIFIER
+                        // opt_prec: PREC TERMINAL
                         const std::size_t size_ =
                             _ebnf_tables.yyr2[results_.entry.param];
                         const std::size_t idx_ = productions_.size() - size_;
@@ -671,58 +671,24 @@ namespace parsertl
                 }
             }
 
-            // Validate start rule
-    /*        if (start_ >= _nt_locations.size() ||
-                _grammar[_nt_locations[start_]._first_production].
-                    _rhs.first.size() != 1)*/
+            static char_type accept_[] =
             {
-                static char_type accept_[] =
-                { '$', 'a', 'c', 'c', 'e', 'p', 't', 0 };
+                '$', 'a', 'c', 'c', 'e', 'p', 't', '\0'
+            };
+
+            // Validate start rule
+            if (_non_terminals.find(accept_) == _non_terminals.end())
+            {
                 string rhs_ = _start;
 
                 push_production(accept_, rhs_);
-                _grammar.back()._rhs.first.push_back
-                (symbol(symbol::TERMINAL, insert_terminal(string(1, '$'))));
-                _start = accept_;
+                _grammar.back()._rhs.first.push_back(symbol(symbol::TERMINAL,
+                    insert_terminal(string(1, '$'))));
             }
-            /*        else
-                    {
-                        typename production_deque::const_iterator iter_ =
-                            _grammar.begin();
-                        typename production_deque::const_iterator end_ =
-                            _grammar.end();
 
-                        _grammar[_nt_locations[start_]._first_production].
-                            _rhs.first.push_back(symbol(symbol::TERMINAL,
-                                insert_terminal(string(1, '$'))));
+            _start = accept_;
 
-                        for (; iter_ != end_; ++iter_)
-                        {
-                            typename symbol_vector::const_iterator sym_iter_ =
-                                iter_->_rhs.first.begin();
-                            typename symbol_vector::const_iterator sym_end_ =
-                                iter_->_rhs.first.end();
-
-                            for (; sym_iter_ != sym_end_; ++sym_iter_)
-                            {
-                                if (sym_iter_->_type == symbol::NON_TERMINAL &&
-                                    sym_iter_->_id == start_)
-                                {
-                                    std::ostringstream ss_;
-                                    const string name_ =
-                                        name_from_nt_id(iter_->_lhs);
-
-                                    ss_ << "The start symbol occurs on the "
-                                        "RHS of rule '";
-                                    narrow(name_.c_str(), ss_);
-                                    ss_ << "'.";
-                                    throw runtime_error(ss_.str());
-                                }
-                            }
-                        }
-                    }*/
-
-                    // Validate all non-terminals.
+            // Validate all non-terminals.
             for (std::size_t i_ = 0, size_ = _nt_locations.size();
                 i_ < size_; ++i_)
             {
@@ -819,6 +785,7 @@ namespace parsertl
             rule_idx = 2,
             rhs_or_1_idx,
             rhs_or_2_idx,
+            opt_prec_list_idx,
             opt_list_1_idx,
             opt_list_2_idx,
             opt_list_3_idx,
