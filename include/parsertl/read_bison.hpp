@@ -104,9 +104,9 @@ namespace parsertl
         lrules_.push("[ \t\r]+", lrules_.skip());
 
         lrules_.push("INITIAL,CODE,PRODUCTIONS", "[{]", ">CODE");
-        lrules_.push("CODE", "'(\\\\.|[^'])*'", ".");
+        lrules_.push("CODE", "'(\\\\.|[^\\\\'])*'", ".");
 
-        lrules_.push("CODE", "[\"](\\\\.|[^\"])*[\"]", ".");
+        lrules_.push("CODE", "[\"](\\\\.|[^\\\\\"])*[\"]", ".");
         lrules_.push("CODE", "<%", ">CODE");
         lrules_.push("CODE", "%>", "<");
         lrules_.push("CODE", "[^}]", ".");

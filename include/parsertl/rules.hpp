@@ -136,8 +136,8 @@ namespace parsertl
             lexer_rules rules_;
 
             rules_.insert_macro("TERMINAL",
-                "'(\\\\([^0-9cx]|[0-9]{1,3}|c[@a-zA-Z]|x\\d+)|[^'])+'|"
-                "[\"](\\\\([^0-9cx]|[0-9]{1,3}|c[@a-zA-Z]|x\\d+)|[^\"])+[\"]");
+                "'(\\\\([^0-9cx]|[0-9]{1,3}|c[@a-zA-Z]|x\\d+)|[^\\\\'])+'|"
+                "[\"](\\\\([^0-9cx]|[0-9]{1,3}|c[@a-zA-Z]|x\\d+)|[^\\\\\"])+[\"]");
             rules_.insert_macro("IDENTIFIER", "[A-Za-z_.][-A-Za-z_.0-9]*");
             rules_.push("{TERMINAL}", ebnf_tables::TERMINAL);
             rules_.push("{IDENTIFIER}", ebnf_tables::IDENTIFIER);
