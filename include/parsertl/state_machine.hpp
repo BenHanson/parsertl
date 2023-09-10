@@ -7,7 +7,7 @@
 #define PARSERTL_STATE_MACHINE_HPP
 
 #include <algorithm>
-#include "../../../lexertl/include/lexertl/compile_assert.hpp"
+#include <lexertl/compile_assert.hpp>
 #include "enums.hpp"
 #include <deque>
 #include <vector>
