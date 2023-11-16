@@ -881,19 +881,6 @@ namespace parsertl
                         modified_ = true;
                     }
                 }
-                else if (lhs_.action == reduce && rhs_.action == reduce)
-                {
-                    if (lhs_prec_ == 0 || rhs_prec_ == 0 ||
-                        lhs_prec_ == rhs_prec_)
-                    {
-                        error_ = true;
-                    }
-                    else if (rhs_prec_ > lhs_prec_)
-                    {
-                        lhs_ = rhs_;
-                        modified_ = true;
-                    }
-                }
                 else
                 {
                     error_ = true;
