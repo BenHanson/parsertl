@@ -883,15 +883,6 @@ namespace parsertl
                 }
                 else
                 {
-                    if (lhs_.action == action::reduce &&
-                        rhs_.action == action::reduce &&
-                        // Take the earlier rule on reduce/reduce error
-                        rhs_.param < lhs_.param)
-                    {
-                        lhs_.param = rhs_.param;
-                        modified_ = true;
-                    }
-
                     error_ = true;
                 }
             }
@@ -908,6 +899,15 @@ namespace parsertl
                     ss_);
                 ss_ << " conflict.\n";
                 warnings_ += ss_.str();
+
+                if (lhs_.action == action::reduce &&
+                    rhs_.action == action::reduce &&
+                    // Take the earlier rule on reduce/reduce error
+                    rhs_.param < lhs_.param)
+                {
+                    lhs_.param = rhs_.param;
+                    modified_ = true;
+                }
             }
 
             return modified_;
