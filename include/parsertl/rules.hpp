@@ -646,6 +646,9 @@ namespace parsertl
                     _grammar.begin(), end2_ = _grammar.end();
                     !found_ && iter2_ != end2_; ++iter2_)
                 {
+                    if (iter_->second == iter2_->_lhs)
+                        continue;
+
                     for (typename symbol_vector::const_iterator iter3_ =
                         iter2_->_rhs.first.begin(),
                         end3_ = iter2_->_rhs.first.end();
