@@ -674,6 +674,22 @@ namespace parsertl
                 }
             }
 
+            // Validate all non-terminals.
+            for (std::size_t i_ = 0, size_ = _nt_locations.size();
+                i_ < size_; ++i_)
+            {
+                if (_nt_locations[i_]._first_production == npos())
+                {
+                    std::ostringstream ss_;
+                    const string name_ = name_from_nt_id(i_);
+
+                    ss_ << "Non-terminal '";
+                    narrow(name_.c_str(), ss_);
+                    ss_ << "' does not have any productions.";
+                    throw runtime_error(ss_.str());
+                }
+            }
+
             static const char_type accept_[] =
             {
                 '$', 'a', 'c', 'c', 'e', 'p', 't', '\0'
@@ -690,22 +706,6 @@ namespace parsertl
             }
 
             _start = accept_;
-
-            // Validate all non-terminals.
-            for (std::size_t i_ = 0, size_ = _nt_locations.size();
-                i_ < size_; ++i_)
-            {
-                if (_nt_locations[i_]._first_production == npos())
-                {
-                    std::ostringstream ss_;
-                    const string name_ = name_from_nt_id(i_);
-
-                    ss_ << "Non-terminal '";
-                    narrow(name_.c_str(), ss_);
-                    ss_ << "' does not have any productions.";
-                    throw runtime_error(ss_.str());
-                }
-            }
         }
 
         const production_deque& grammar() const
@@ -860,6 +860,10 @@ namespace parsertl
                 }
 
                 token_ = iter_->str();
+
+                if (_terminals.find(token_) != _terminals.cend())
+                    throw runtime_error("token " + token_ + " is already defined.");
+
                 id_ = insert_terminal(token_);
 
                 token_info& token_info_ = info(id_);
@@ -896,8 +900,7 @@ namespace parsertl
 
         id_type insert_terminal(const string& str_)
         {
-            return _terminals.insert
-            (string_id_type_pair(str_,
+            return _terminals.insert(string_id_type_pair(str_,
                 static_cast<id_type>(_terminals.size()))).first->second;
         }
 

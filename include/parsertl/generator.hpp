@@ -68,7 +68,6 @@ namespace parsertl
             nt_info_vector new_nt_info_;
             std::string warns_;
 
-            rules_.validate();
             build_dfa(rules_, dfa_);
             rewrite(rules_, dfa_, new_grammar_, new_start_, new_nt_info_);
             build_first_sets(new_grammar_, new_nt_info_);
@@ -98,8 +97,10 @@ namespace parsertl
             sm_._captures = rules_.captures();
         }
 
-        static void build_dfa(const rules& rules_, dfa& dfa_)
+        static void build_dfa(rules& rules_, dfa& dfa_)
         {
+            rules_.validate();
+
             const grammar& grammar_ = rules_.grammar();
             const std::size_t terminals_ = rules_.tokens_info().size();
             const std::size_t start_ = rules_.start();
