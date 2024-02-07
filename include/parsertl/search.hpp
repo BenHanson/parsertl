@@ -118,7 +118,7 @@ namespace parsertl
     // Equivalent of std::search().
     template<typename lexer_iterator, typename sm_type>
     bool search(lexer_iterator& iter_, lexer_iterator& end_, const sm_type& sm_,
-        std::set<typename sm_type::id_type>* prod_set_ = nullptr)
+        std::set<typename sm_type::id_type>* prod_set_ = 0)
     {
         bool hit_ = false;
         lexer_iterator curr_ = iter_;
@@ -297,7 +297,7 @@ namespace parsertl
             case reduce:
             {
                 const std::size_t size_ =
-                    sm_._rules[results_.entry.param].second.size();
+                    sm_._rules[results_.entry.param]._rhs.size();
 
                 if (prod_set_)
                 {
@@ -309,7 +309,7 @@ namespace parsertl
                     results_.stack.resize(results_.stack.size() - size_);
                 }
 
-                results_.token_id = sm_._rules[results_.entry.param].first;
+                results_.token_id = sm_._rules[results_.entry.param]._lhs;
                 results_.entry =
                     sm_.at(results_.stack.back(), results_.token_id);
                 break;
@@ -323,7 +323,7 @@ namespace parsertl
             case accept:
             {
                 const std::size_t size_ =
-                    sm_._rules[results_.entry.param].second.size();
+                    sm_._rules[results_.entry.param]._rhs.size();
 
                 if (size_)
                 {
@@ -381,7 +381,7 @@ namespace parsertl
             case reduce:
             {
                 const std::size_t size_ =
-                    sm_._rules[results_.entry.param].second.size();
+                    sm_._rules[results_.entry.param]._rhs.size();
                 token<lexer_iterator> token_;
 
                 if (size_)
@@ -404,7 +404,7 @@ namespace parsertl
                     }
                 }
 
-                results_.token_id = sm_._rules[results_.entry.param].first;
+                results_.token_id = sm_._rules[results_.entry.param]._lhs;
                 results_.entry =
                     sm_.at(results_.stack.back(), results_.token_id);
                 token_.id = results_.token_id;
@@ -420,7 +420,7 @@ namespace parsertl
             case accept:
             {
                 const std::size_t size_ =
-                    sm_._rules[results_.entry.param].second.size();
+                    sm_._rules[results_.entry.param]._rhs.size();
 
                 if (size_)
                 {
@@ -467,7 +467,7 @@ namespace parsertl
                 case reduce:
                 {
                     const std::size_t size_ =
-                        sm_._rules[results_.entry.param].second.size();
+                        sm_._rules[results_.entry.param]._rhs.size();
 
                     if (prod_set_)
                     {
@@ -479,7 +479,7 @@ namespace parsertl
                         results_.stack.resize(results_.stack.size() - size_);
                     }
 
-                    results_.token_id = sm_._rules[results_.entry.param].first;
+                    results_.token_id = sm_._rules[results_.entry.param]._lhs;
                     results_.entry =
                         sm_.at(results_.stack.back(), results_.token_id);
                     break;
@@ -498,7 +498,7 @@ namespace parsertl
                 if (results_.entry.action == accept)
                 {
                     const std::size_t size_ =
-                        sm_._rules[results_.entry.param].second.size();
+                        sm_._rules[results_.entry.param]._rhs.size();
 
                     if (size_)
                     {
@@ -547,7 +547,7 @@ namespace parsertl
                 case reduce:
                 {
                     const std::size_t size_ =
-                        sm_._rules[results_.entry.param].second.size();
+                        sm_._rules[results_.entry.param]._rhs.size();
                     token<lexer_iterator> token_;
 
                     if (size_)
@@ -555,8 +555,8 @@ namespace parsertl
                         if (prod_map_)
                         {
                             prod_map_->insert(std::pair
-                                <typename sm_type::id_type,
-                                token_vector>(results_.entry.param,
+                                <typename sm_type::id_type, token_vector>
+                                (results_.entry.param,
                                     token_vector(productions_.end() - size_,
                                     productions_.end())));
                         }
@@ -579,7 +579,7 @@ namespace parsertl
                         }
                     }
 
-                    results_.token_id = sm_._rules[results_.entry.param].first;
+                    results_.token_id = sm_._rules[results_.entry.param]._lhs;
                     results_.entry =
                         sm_.at(results_.stack.back(), results_.token_id);
                     token_.id = results_.token_id;
@@ -601,7 +601,7 @@ namespace parsertl
                 if (results_.entry.action == accept)
                 {
                     const std::size_t size_ =
-                        sm_._rules[results_.entry.param].second.size();
+                        sm_._rules[results_.entry.param]._rhs.size();
 
                     if (size_)
                     {

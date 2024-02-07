@@ -14,14 +14,18 @@ namespace parsertl
     template<typename iterator>
     struct capture
     {
-        using iter_type = iterator;
-        using char_type = typename std::iterator_traits<iter_type>::value_type;
-        using string = std::basic_string<char_type>;
+        typedef iterator iter_type;
+        typedef typename std::iterator_traits<iter_type>::value_type char_type;
+        typedef std::basic_string<char_type> string;
 
-        iterator first = iterator();
-        iterator second = iterator();
+        iterator first;
+        iterator second;
 
-        capture() = default;
+        capture() :
+            first(iterator()),
+            second(iterator())
+        {
+        }
 
         capture(const iterator& first_,
             const iterator& second_) :

@@ -30,8 +30,8 @@ namespace parsertl
             const typename sm_type::id_type_vector_pair& rule_ =
                 sm_._rules[idx_];
 
-            stream_ << rule_.first << '\n';
-            lexertl::detail::output_vec<char>(rule_.second, stream_);
+            stream_ << rule_._lhs << '\n';
+            lexertl::detail::output_vec<char>(rule_._rhs, stream_);
         }
 
         stream_ << sm_._captures.size() << '\n';
@@ -64,13 +64,14 @@ namespace parsertl
 
             stream_ << vec_.size() << '\n';
 
-            for (std::size_t idx2_ = 0, size2_ = vec_.size(); idx2_ < size2_; ++idx2_)
+            for (std::size_t idx2_ = 0, size2_ = vec_.size();
+                idx2_ < size2_; ++idx2_)
             {
                 const typename sm_type::state_pair& pair_ = vec_[idx2_];
 
-                stream_ << pair_.first << ' ';
-                stream_ << static_cast<std::size_t>(pair_.second.action) << ' ';
-                stream_ << pair_.second.param << '\n';
+                stream_ << pair_._id << ' ';
+                stream_ << static_cast<std::size_t>(pair_._entry.action) << ' ';
+                stream_ << pair_._entry.param << '\n';
             }
         }
     }
@@ -100,8 +101,8 @@ namespace parsertl
 
             typename sm_type::id_type_vector_pair& rule_ = sm_._rules.back();
 
-            stream_ >> rule_.first;
-            lexertl::detail::input_vec<char>(stream_, rule_.second);
+            stream_ >> rule_._lhs;
+            lexertl::detail::input_vec<char>(stream_, rule_._rhs);
         }
 
         stream_ >> num_;
@@ -116,7 +117,8 @@ namespace parsertl
             stream_ >> num_;
             capture_.second.reserve(num_);
 
-            for (std::size_t idx2_ = 0, entries_ = num_; idx2_ < entries_; ++idx2_)
+            for (std::size_t idx2_ = 0, entries_ = num_;
+                idx2_ < entries_; ++idx2_)
             {
                 capture_.second.push_back(typename sm_type::id_type_pair());
 
@@ -125,7 +127,7 @@ namespace parsertl
                 stream_ >> num_;
                 pair_.first = static_cast<id_type>(num_);
                 stream_ >> num_;
-                pair_.second = static_cast<id_type>(num_);;
+                pair_.second = static_cast<id_type>(num_);
             }
         }
 
@@ -149,11 +151,11 @@ namespace parsertl
                 typename sm_type::state_pair& pair_ = vec_.back();
 
                 stream_ >> num_;
-                pair_.first = static_cast<id_type>(num_);
+                pair_._id = static_cast<id_type>(num_);
                 stream_ >> num_;
-                pair_.second.action = static_cast<action>(num_);
+                pair_._entry.action = static_cast<action>(num_);
                 stream_ >> num_;
-                pair_.second.param = static_cast<id_type>(num_);
+                pair_._entry.param = static_cast<id_type>(num_);
             }
         }
     }

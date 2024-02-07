@@ -23,7 +23,18 @@ namespace parsertl
         typedef std::pair<std::size_t, capture_vector> capture;
         typedef std::deque<capture> captures_deque;
         typedef std::vector<id_type> id_type_vector;
-        typedef std::pair<id_type, id_type_vector> id_type_vector_pair;
+
+        struct id_type_vector_pair
+        {
+            id_type _lhs;
+            id_type_vector _rhs;
+
+            id_type_vector_pair() :
+                _lhs(0)
+            {
+            }
+        };
+
         typedef std::deque<id_type_vector_pair> rules;
 
         std::size_t _columns;
@@ -95,7 +106,24 @@ namespace parsertl
         typedef base_state_machine<id_ty> base_sm;
         typedef id_ty id_type;
         typedef typename base_sm::entry entry;
-        typedef std::pair<id_type, entry> state_pair;
+
+        struct state_pair
+        {
+            id_type _id;
+            entry _entry;
+
+            state_pair() :
+                _id(0)
+            {
+            }
+
+            state_pair(const id_type id_, const entry& entry_) :
+                _id(id_),
+                _entry(entry_)
+            {
+            }
+        };
+
         typedef std::vector<state_pair> pair_vector;
         typedef std::vector<pair_vector> table;
 
@@ -126,7 +154,7 @@ namespace parsertl
             if (iter_ == s_.end())
                 return entry();
             else
-                return iter_->second;
+                return iter_->_entry;
         }
 
         entry at(const std::size_t state_, const std::size_t token_id_) const
@@ -138,7 +166,7 @@ namespace parsertl
             if (iter_ == s_.end())
                 return entry();
             else
-                return iter_->second;
+                return iter_->_entry;
         }
 
         void set(const std::size_t state_, const std::size_t token_id_,
@@ -149,10 +177,10 @@ namespace parsertl
                 s_.end(), pred(token_id_));
 
             if (iter_ == s_.end())
-                s_.push_back(std::pair<id_type, entry>
-                    (static_cast<id_type>(token_id_), entry_));
+                s_.push_back(state_pair(static_cast<id_type>
+                    (token_id_), entry_));
             else
-                iter_->second = entry_;
+                iter_->_entry = entry_;
         }
 
         void push()
@@ -172,7 +200,7 @@ namespace parsertl
 
             bool operator()(const state_pair& pair)
             {
-                return _token_id == pair.first;
+                return _token_id == pair._id;
             }
         };
     };

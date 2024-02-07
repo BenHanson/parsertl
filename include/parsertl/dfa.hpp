@@ -11,14 +11,42 @@
 
 namespace parsertl
 {
-    typedef std::pair<std::size_t, std::size_t> size_t_pair;
-    typedef std::vector<size_t_pair> size_t_pair_vector;
+    struct cursor
+    {
+        std::size_t _id;
+        std::size_t _index;
+
+        cursor() :
+            _id(0),
+            _index(0)
+        {
+        }
+
+        cursor(const std::size_t id_, const std::size_t index_) :
+            _id(id_),
+            _index(index_)
+        {
+        }
+
+        bool operator==(const cursor& rhs_) const
+        {
+            return _id == rhs_._id && _index == rhs_._index;
+        }
+
+        bool operator<(const cursor& rhs_) const
+        {
+            return _id < rhs_._id ||
+                _id == rhs_._id && _index < rhs_._index;
+        }
+    };
+
+    typedef std::vector<cursor> cursor_vector;
 
     struct dfa_state
     {
-        size_t_pair_vector _basis;
-        size_t_pair_vector _closure;
-        size_t_pair_vector _transitions;
+        cursor_vector _basis;
+        cursor_vector _closure;
+        cursor_vector _transitions;
     };
 
     typedef std::deque<dfa_state> dfa;

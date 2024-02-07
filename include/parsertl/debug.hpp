@@ -99,7 +99,7 @@ namespace parsertl
 
                     while (index_ != static_cast<std::size_t>(~0))
                     {
-                        if (lhs_iter_->_rhs.first.empty())
+                        if (lhs_iter_->_rhs._symbols.empty())
                         {
                             stream_ << ' ';
                             empty(stream_);
@@ -107,9 +107,9 @@ namespace parsertl
                         else
                         {
                             typename symbol_vector::const_iterator rhs_iter_ =
-                                lhs_iter_->_rhs.first.begin();
+                                lhs_iter_->_rhs._symbols.begin();
                             typename symbol_vector::const_iterator rhs_end_ =
-                                lhs_iter_->_rhs.first.end();
+                                lhs_iter_->_rhs._symbols.end();
 
                             for (; rhs_iter_ != rhs_end_; ++rhs_iter_)
                             {
@@ -126,11 +126,11 @@ namespace parsertl
                             }
                         }
 
-                        if (!lhs_iter_->_rhs.second.empty())
+                        if (!lhs_iter_->_rhs._prec.empty())
                         {
                             stream_ << ' ';
                             prec(stream_);
-                            stream_ << lhs_iter_->_rhs.second;
+                            stream_ << lhs_iter_->_rhs._prec;
                         }
 
                         index_ = lhs_iter_->_next_lhs;
@@ -173,15 +173,15 @@ namespace parsertl
                 idx_ < dfa_size_; ++idx_)
             {
                 const dfa_state& state_ = dfa_[idx_];
-                const size_t_pair_vector& config_ = state_._closure;
+                const cursor_vector& config_ = state_._closure;
 
                 state(idx_, stream_);
 
-                for (typename size_t_pair_vector::const_iterator iter_ =
+                for (typename cursor_vector::const_iterator iter_ =
                     config_.begin(), end_ = config_.end(); iter_ != end_;
                     ++iter_)
                 {
-                    const production& p_ = grammar_[iter_->first];
+                    const production& p_ = grammar_[iter_->_id];
                     std::size_t j_ = 0;
 
                     stream_ << ' ' << ' ' << symbols_[terminals_ + p_._lhs] <<
@@ -194,7 +194,7 @@ namespace parsertl
                             symbol_._type == symbol::TERMINAL ? symbol_._id :
                             terminals_ + symbol_._id;
 
-                        if (j_ == iter_->second)
+                        if (j_ == iter_->_index)
                         {
                             stream_ << ' ' << '.';
                         }
@@ -202,7 +202,7 @@ namespace parsertl
                         stream_ << ' ' << symbols_[id_];
                     }
 
-                    if (j_ == iter_->second)
+                    if (j_ == iter_->_index)
                     {
                         stream_ << ' ' << '.';
                     }
@@ -213,12 +213,12 @@ namespace parsertl
                 if (!state_._transitions.empty())
                     stream_ << '\n';
 
-                for (typename size_t_pair_vector::const_iterator t_ =
+                for (typename cursor_vector::const_iterator t_ =
                     state_._transitions.begin(), e_ = state_._transitions.end();
                     t_ != e_; ++t_)
                 {
-                    stream_ << ' ' << ' ' << symbols_[t_->first] << ' ' <<
-                        '-' << '>' << ' ' << t_->second << '\n';
+                    stream_ << ' ' << ' ' << symbols_[t_->_id] << ' ' <<
+                        '-' << '>' << ' ' << t_->_index << '\n';
                 }
 
                 stream_ << '\n';

@@ -26,7 +26,7 @@ namespace parsertl
         basic_match_results<sm_type> results_(iter_->id, sm_);
         // Qualify token to prevent arg dependant lookup
         typedef parsertl::token<lexer_iterator> token;
-        typedef lexer_iterator::value_type::iter_type iter_type;
+        typedef typename lexer_iterator::value_type::iter_type iter_type;
         typename token::token_vector productions_;
 
         captures_.clear();
@@ -40,7 +40,7 @@ namespace parsertl
         {
             if (results_.entry.action == reduce)
             {
-                const typename sm_type::capture_vec_pair& row_ =
+                const typename sm_type::capture& row_ =
                     sm_._captures[results_.entry.param];
 
                 if (!row_.second.empty())
