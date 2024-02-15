@@ -61,7 +61,7 @@ namespace parsertl
             bool operator<(const symbol& rhs_) const
             {
                 return _type < rhs_._type ||
-                    _type == rhs_._type && _id < rhs_._id;
+                    (_type == rhs_._type && _id < rhs_._id);
             }
 
             bool operator==(const symbol& rhs_) const
@@ -94,7 +94,7 @@ namespace parsertl
                 bool operator<(const rhs& rhs_) const
                 {
                     return _symbols < rhs_._symbols ||
-                        _symbols == rhs_._symbols && _prec < rhs_._prec;
+                        (_symbols == rhs_._symbols && _prec < rhs_._prec);
                 }
             };
 
