@@ -70,6 +70,7 @@ namespace parsertl
             lookup(iter_, sm_, results_, productions_);
         }
 
+        captures_[0].back().second = iter_->first;
         return results_.entry.action == accept;
     }
 }
