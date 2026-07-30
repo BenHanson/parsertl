@@ -7,11 +7,12 @@
 #define PARSERTL_SEARCH_HPP
 
 #include "capture.hpp"
-#include <map>
 #include "match_results.hpp"
 #include "parse.hpp"
-#include <set>
 #include "token.hpp"
+
+#include <map>
+#include <set>
 
 namespace parsertl
 {
