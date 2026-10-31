@@ -30,7 +30,8 @@ namespace parsertl
         typename token::token_vector productions_;
 
         captures_.clear();
-        captures_.resize(sm_._captures.back().first +
+        captures_.resize(sm_._captures.empty() ? 1 :
+            sm_._captures.back().first +
             sm_._captures.back().second.size() + 1);
         captures_[0].push_back(std::pair<iter_type, iter_type>
             (iter_->first, iter_->second));
@@ -38,7 +39,8 @@ namespace parsertl
         while (results_.entry.action != error &&
             results_.entry.action != accept)
         {
-            if (results_.entry.action == reduce)
+            if (results_.entry.action == reduce &&
+                sm_._captures.size() > results_.entry.param)
             {
                 const typename sm_type::capture& row_ =
                     sm_._captures[results_.entry.param];
