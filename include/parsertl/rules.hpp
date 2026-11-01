@@ -308,7 +308,7 @@ namespace parsertl
                 std::ostringstream ss_;
 
                 ss_ << "Rule ";
-                narrow(lhs_.c_str(), ss_);
+                narrow(lhs_, ss_);
                 ss_ << " is already defined as a TERMINAL.";
                 throw runtime_error(ss_.str());
             }
@@ -318,7 +318,7 @@ namespace parsertl
                 std::ostringstream ss_;
 
                 ss_ << "Rule ";
-                narrow(lhs_.c_str(), ss_);
+                narrow(lhs_, ss_);
                 ss_ << " is already defined as a generated rule.";
                 throw runtime_error(ss_.str());
             }
@@ -334,6 +334,12 @@ namespace parsertl
             static const char_type empty_or_[] =
             { '%', 'e', 'm', 'p', 't', 'y', ' ', '|', ' ', '\0' };
             static const char_type or_[] = { ' ', '|', ' ', '\0' };
+            const typename std::map<string, std::size_t>::iterator
+                counter_iter_ = _new_rule_ids.find(lhs_);
+            std::size_t counter_ = counter_iter_ == _new_rule_ids.end() ?
+                0 :
+                counter_iter_->second;
+            std::set<string> generated_rules_;
 
             bison_next(_ebnf_tables, iter_, results_);
 
@@ -419,14 +425,13 @@ namespace parsertl
                     {
                         // rhs: '[' rhs_or ']'
                         // rhs: rhs '?'
-                        std::size_t& counter_ = _new_rule_ids[lhs_];
                         std::basic_ostringstream<char_type> ss_;
                         std::pair<string, string> pair_;
 
                         ++counter_;
                         ss_ << counter_;
                         pair_.first = lhs_ + char_type('_') + ss_.str();
-                        _generated_rules.insert(pair_.first);
+                        generated_rules_.insert(pair_.first);
                         pair_.second = empty_or_ + rhs_stack_.top();
                         rhs_stack_.top() = pair_.first;
                         new_rules_.push(pair_);
@@ -437,14 +442,13 @@ namespace parsertl
                     {
                         // rhs: '{' rhs_or '}'
                         // rhs: rhs '*'
-                        std::size_t& counter_ = _new_rule_ids[lhs_];
                         std::basic_ostringstream<char_type> ss_;
                         std::pair<string, string> pair_;
 
                         ++counter_;
                         ss_ << counter_;
                         pair_.first = lhs_ + char_type('_') + ss_.str();
-                        _generated_rules.insert(pair_.first);
+                        generated_rules_.insert(pair_.first);
                         pair_.second = empty_or_ + pair_.first +
                             char_type(' ') + rhs_stack_.top();
                         rhs_stack_.top() = pair_.first;
@@ -456,14 +460,13 @@ namespace parsertl
                     {
                         // rhs: '{' rhs_or '}' '-'
                         // rhs: rhs '+'
-                        std::size_t& counter_ = _new_rule_ids[lhs_];
                         std::basic_ostringstream<char_type> ss_;
                         std::pair<string, string> pair_;
 
                         ++counter_;
                         ss_ << counter_;
                         pair_.first = lhs_ + char_type('_') + ss_.str();
-                        _generated_rules.insert(pair_.first);
+                        generated_rules_.insert(pair_.first);
                         pair_.second = rhs_stack_.top() + or_ +
                             pair_.first + char_type(' ') + rhs_stack_.top();
                         rhs_stack_.top() = pair_.first;
@@ -473,14 +476,13 @@ namespace parsertl
                     case bracketed_idx:
                     {
                         // rhs: '(' rhs_or ')'
-                        std::size_t& counter_ = _new_rule_ids[lhs_];
                         std::basic_ostringstream<char_type> ss_;
                         std::pair<string, string> pair_;
 
                         ++counter_;
                         ss_ << counter_;
                         pair_.first = lhs_ + char_type('_') + ss_.str();
-                        _generated_rules.insert(pair_.first);
+                        generated_rules_.insert(pair_.first);
                         pair_.second = rhs_stack_.top();
 
                         if (_flags & enable_captures)
@@ -505,6 +507,17 @@ namespace parsertl
                             _ebnf_tables.yyr2[results_.entry.param];
                         const std::size_t idx_ = productions_.size() - size_;
                         const token_t& token_ = productions_[idx_];
+                        const string name_ = productions_[idx_ + 1].str();
+
+                        if (_terminals.find(name_) == _terminals.end())
+                        {
+                            std::ostringstream ss_;
+
+                            ss_ << "Unknown %prec terminal ";
+                            narrow(name_, ss_);
+                            ss_ << '.';
+                            throw runtime_error(ss_.str());
+                        }
 
                         rhs_stack_.push(token_.str() + char_type(' ') +
                             productions_[idx_ + 1].str());
@@ -522,9 +535,9 @@ namespace parsertl
                 std::ostringstream ss_;
 
                 ss_ << "Syntax error in rule ";
-                narrow(lhs_.c_str(), ss_);
+                narrow(lhs_, ss_);
                 ss_ << '(' << iter_->first - rhs_.c_str() + 1 << "): '";
-                narrow(rhs_.c_str(), ss_);
+                narrow(rhs_, ss_);
                 ss_ << "'.";
                 throw runtime_error(ss_.str());
             }
@@ -544,6 +557,11 @@ namespace parsertl
                 resize_captures();
             }
 
+            if (counter_ > 0)
+                _new_rule_ids[lhs_] = counter_;
+
+            _generated_rules.insert(generated_rules_.begin(),
+                generated_rules_.end());
             return index_;
         }
 
@@ -557,7 +575,7 @@ namespace parsertl
                 std::ostringstream ss_;
 
                 ss_ << "Unknown token \"";
-                narrow(name_.c_str(), ss_);
+                narrow(name_, ss_);
                 ss_ << "\".";
                 throw runtime_error(ss_.str());
             }
@@ -689,7 +707,7 @@ namespace parsertl
                     const string name_ = iter_->first;
 
                     ss_ << '\'';
-                    narrow(name_.c_str(), ss_);
+                    narrow(name_, ss_);
                     ss_ << "' is an unused rule.";
                     throw runtime_error(ss_.str());
                 }
@@ -705,7 +723,7 @@ namespace parsertl
                     const string name_ = name_from_nt_id(i_);
 
                     ss_ << "Non-terminal '";
-                    narrow(name_.c_str(), ss_);
+                    narrow(name_, ss_);
                     ss_ << "' does not have any productions.";
                     throw runtime_error(ss_.str());
                 }
@@ -887,7 +905,7 @@ namespace parsertl
                     std::ostringstream ss_;
 
                     ss_ << "token ";
-                    narrow(token_.c_str(), ss_);
+                    narrow(token_, ss_);
                     ss_ << " is already defined.";
                     throw runtime_error(ss_.str());
                 }
